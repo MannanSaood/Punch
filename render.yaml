@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: punch-server
+    runtime: go
+    rootDir: server
+    buildCommand: go build -o punch-server ./cmd/main.go
+    startCommand: ./punch-server
+    envVars:
+      - key: PUNCH_PORT
+        value: 8080
+      - key: PUNCH_RELAY_ENABLED
+        value: true
+      - key: PUNCH_MAX_SESSIONS
+        value: 1000

@@ -1,0 +1,55 @@
+[package]
+name = "punch-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["Syed Mannan Saood <your@email.com>"]
+description = "Punches through networks to connect two devices directly"
+license = "MIT"
+repository = "https://github.com/MannanSaood/punch"
+
+[[bin]]
+name = "punch"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# WebSocket client (for signalling server connection)
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# Encryption for relay traffic (ChaCha20-Poly1305)
+chacha20poly1305 = "0.10"
+
+# Error handling
+anyhow = "1"
+
+# Home directory resolution
+dirs = "5"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Random number generation (for token codes)
+rand = "0.8"
+
+# UUID for session IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Futures utilities
+futures-util = "0.3"
+
+# URL parsing
+url = "2"
