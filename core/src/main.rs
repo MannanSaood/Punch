@@ -1,4 +1,5 @@
 mod cli;
+mod crypto;
 mod stun;
 mod signaling;
 mod punch;

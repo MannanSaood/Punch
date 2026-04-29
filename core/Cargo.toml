@@ -53,3 +53,9 @@ futures-util = "0.3"
 
 # URL parsing
 url = "2"
+
+# X25519 Diffie-Hellman key exchange
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+# Random key generation
+rand_core = { version = "0.6", features = ["getrandom"] }

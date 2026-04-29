@@ -2,6 +2,8 @@ use std::net::SocketAddr;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use x25519_dalek::PublicKey;
+use crate::crypto::{SessionCipher, SessionKeypair};
 use crate::logger::ConnectionType;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,6 +16,7 @@ pub enum MsgType {
     Relay,
     Handshake,
     Error,
+    PublicKey,  // new: for key exchange
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,25 +33,21 @@ type WsStream = tokio_tungstenite::WebSocketStream<
     tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>
 >;
 
-/// SignalingClient wraps the WebSocket connection to the Punch signalling server.
 pub struct SignalingClient {
     ws: WsStream,
     code: String,
 }
 
 impl SignalingClient {
-    /// Connect to the signalling server and register with a code.
     pub async fn connect(server: &str, code: &str) -> anyhow::Result<Self> {
         let url = format!("{}/ws", server);
         let (ws, _) = connect_async(&url).await
-            .map_err(|e| anyhow::anyhow!("Could not connect to signalling server: {}\nCheck your internet connection or use --server to specify a custom server.", e))?;
+            .map_err(|e| anyhow::anyhow!(
+                "Could not connect to signalling server: {}\nCheck your internet connection or use --server to specify a custom server.", e
+            ))?;
 
-        let mut client = SignalingClient {
-            ws,
-            code: code.to_string(),
-        };
+        let mut client = SignalingClient { ws, code: code.to_string() };
 
-        // Register with the server
         client.send(SignalMessage {
             msg_type: MsgType::Register,
             code: Some(code.to_string()),
@@ -58,7 +57,6 @@ impl SignalingClient {
         Ok(client)
     }
 
-    /// Wait for the server to confirm another peer has joined.
     pub async fn wait_for_peer(&mut self) -> anyhow::Result<()> {
         loop {
             match self.recv().await? {
@@ -75,13 +73,11 @@ impl SignalingClient {
         }
     }
 
-    /// Send our STUN-derived public endpoint to the server (for forwarding to peer).
     pub async fn send_endpoint(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
         let payload = serde_json::json!({
             "ip": addr.ip().to_string(),
             "port": addr.port(),
         });
-
         self.send(SignalMessage {
             msg_type: MsgType::Endpoint,
             code: Some(self.code.clone()),
@@ -89,7 +85,6 @@ impl SignalingClient {
         }).await
     }
 
-    /// Wait to receive the other peer's endpoint from the server.
     pub async fn wait_for_peer_endpoint(&mut self) -> anyhow::Result<SocketAddr> {
         loop {
             match self.recv().await? {
@@ -104,8 +99,6 @@ impl SignalingClient {
         }
     }
 
-    /// Notify the server that direct p2p connection is established.
-    /// Server will destroy the session after this.
     pub async fn signal_relay_fallback(&mut self) -> anyhow::Result<()> {
         let payload = serde_json::json!({ "relay": true, "ip": "0.0.0.0", "port": 0 });
         self.send(SignalMessage {
@@ -123,20 +116,105 @@ impl SignalingClient {
         }).await
     }
 
-    /// Run a relay session through the signalling server.
-    /// All traffic is end-to-end encrypted — server only forwards bytes.
+    /// Full encrypted relay session.
+    /// Step 1: X25519 key exchange through server (server sees public keys only)
+    /// Step 2: Derive shared secret independently on both sides
+    /// Step 3: All relay traffic encrypted with ChaCha20-Poly1305
     pub async fn run_relay_session(
         &mut self,
         log_enabled: bool,
         session_start: chrono::DateTime<chrono::Utc>,
         code: &str,
     ) -> anyhow::Result<()> {
-        println!("Session active via relay. Press Ctrl+C to disconnect.\n");
 
-        // In v0.2: implement full ChaCha20-Poly1305 encrypted relay here
-        // For v0.1: placeholder showing the relay pathway works
-        tokio::signal::ctrl_c().await?;
-        println!("\nDisconnecting...");
+        // --- Step 1: Key Exchange ---
+        let keypair = SessionKeypair::generate();
+        let my_public_bytes = keypair.public_bytes();
+
+        // Send our public key to the peer via server
+        self.send(SignalMessage {
+            msg_type: MsgType::PublicKey,
+            code: Some(self.code.clone()),
+            payload: Some(serde_json::json!({
+                "key": base64_encode(&my_public_bytes)
+            })),
+        }).await?;
+
+        // Wait for peer's public key
+        let peer_public_bytes = loop {
+            match self.recv().await? {
+                SignalMessage { msg_type: MsgType::PublicKey, payload: Some(p), .. } => {
+                    let key_b64 = p["key"].as_str()
+                        .ok_or_else(|| anyhow::anyhow!("Missing key"))?;
+                    let bytes = base64_decode(key_b64)?;
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&bytes);
+                    break arr;
+                }
+                _ => continue,
+            }
+        };
+
+        // --- Step 2: Derive shared secret ---
+        // Both peers independently compute the same secret.
+        // Server only saw two public keys — cannot derive the secret.
+        let peer_public = PublicKey::from(peer_public_bytes);
+        let cipher = keypair.derive_shared_secret(peer_public);
+
+        println!("🔑 Keys exchanged. End-to-end encrypted.\n");
+
+        // --- Step 3: Encrypted relay loop ---
+        self.encrypted_relay_loop(cipher, log_enabled, session_start, code).await
+    }
+
+    async fn encrypted_relay_loop(
+        &mut self,
+        cipher: SessionCipher,
+        log_enabled: bool,
+        session_start: chrono::DateTime<chrono::Utc>,
+        code: &str,
+    ) -> anyhow::Result<()> {
+        println!("Session active via encrypted relay. Press Ctrl+C to disconnect.\n");
+
+        let mut bytes_sent: u64 = 0;
+        let mut bytes_received: u64 = 0;
+
+        loop {
+            tokio::select! {
+                msg = self.recv() => {
+                    match msg {
+                        Ok(SignalMessage { msg_type: MsgType::Relay, payload: Some(p), .. }) => {
+                            if let Some(data_b64) = p["data"].as_str() {
+                                if let Ok(encrypted) = base64_decode(data_b64) {
+                                    match cipher.decrypt(&encrypted) {
+                                        Ok(plain) => {
+                                            bytes_received += plain.len() as u64;
+                                            tracing::debug!("Received {} bytes (decrypted)", plain.len());
+                                        }
+                                        Err(e) => {
+                                            tracing::warn!("Decryption failed: {}", e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Ok(SignalMessage { msg_type: MsgType::Error, .. }) => {
+                            println!("\nPeer disconnected.");
+                            break;
+                        }
+                        Err(e) => {
+                            tracing::debug!("Connection error: {}", e);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+                _ = tokio::signal::ctrl_c() => {
+                    println!("\nDisconnecting...");
+                    break;
+                }
+            }
+        }
 
         if log_enabled {
             let log = crate::logger::SessionLog {
@@ -145,8 +223,8 @@ impl SignalingClient {
                 connection_type: ConnectionType::Relay,
                 started_at: session_start,
                 ended_at: chrono::Utc::now(),
-                bytes_sent: 0,
-                bytes_received: 0,
+                bytes_sent,
+                bytes_received,
             };
             crate::logger::write_log(log).await?;
         }
@@ -167,13 +245,62 @@ impl SignalingClient {
                     return Ok(serde_json::from_str(&text)?);
                 }
                 Some(Ok(Message::Ping(_))) => continue,
-                Some(Ok(Message::Close(_))) => {
-                    anyhow::bail!("Server closed connection");
-                }
+                Some(Ok(Message::Close(_))) => anyhow::bail!("Server closed connection"),
                 Some(Err(e)) => anyhow::bail!("WebSocket error: {}", e),
                 None => anyhow::bail!("Connection lost"),
                 _ => continue,
             }
         }
     }
+}
+
+// Minimal base64 helpers to avoid adding another dependency
+fn base64_encode(data: &[u8]) -> String {
+    use std::fmt::Write;
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    let mut i = 0;
+    while i < data.len() {
+        let b0 = data[i] as usize;
+        let b1 = if i+1 < data.len() { data[i+1] as usize } else { 0 };
+        let b2 = if i+2 < data.len() { data[i+2] as usize } else { 0 };
+        write!(out, "{}{}{}{}", 
+            CHARS[b0 >> 2] as char,
+            CHARS[((b0 & 3) << 4) | (b1 >> 4)] as char,
+            if i+1 < data.len() { CHARS[((b1 & 15) << 2) | (b2 >> 6)] as char } else { '=' },
+            if i+2 < data.len() { CHARS[b2 & 63] as char } else { '=' },
+        ).unwrap();
+        i += 3;
+    }
+    out
+}
+
+fn base64_decode(s: &str) -> anyhow::Result<Vec<u8>> {
+    let s = s.replace('=', "");
+    let mut out = Vec::new();
+    let chars: Vec<u8> = s.bytes().map(|c| match c {
+        b'A'..=b'Z' => c - b'A',
+        b'a'..=b'z' => c - b'a' + 26,
+        b'0'..=b'9' => c - b'0' + 52,
+        b'+' => 62,
+        b'/' => 63,
+        _ => 255,
+    }).collect();
+
+    let mut i = 0;
+    while i + 1 < chars.len() {
+        let b0 = chars[i];
+        let b1 = chars[i+1];
+        out.push((b0 << 2) | (b1 >> 4));
+        if i+2 < chars.len() {
+            let b2 = chars[i+2];
+            out.push((b1 << 4) | (b2 >> 2));
+            if i+3 < chars.len() {
+                let b3 = chars[i+3];
+                out.push((b2 << 6) | b3);
+            }
+        }
+        i += 4;
+    }
+    Ok(out)
 }

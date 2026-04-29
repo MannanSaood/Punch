@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	handshakeTimeout = 30 * time.Second
+	handshakeTimeout = 5 * time.Minute
 	writeTimeout     = 10 * time.Second
-	readTimeout      = 60 * time.Second
+	readTimeout      = 5 * time.Minute
 )
 
 // MessageType defines the type of signalling message.
@@ -25,7 +25,8 @@ const (
 	MsgMatched   MessageType = "matched"    // server tells peers they found each other
 	MsgEndpoint  MessageType = "endpoint"   // peer shares its STUN-derived public endpoint
 	MsgRelay     MessageType = "relay"      // fallback: relay a packet to the other peer
-	MsgHandshake MessageType = "handshake"  // direct connection established, server exits
+	MsgHandshake  MessageType = "handshake"
+	MsgPublicKey  MessageType = "publickey"  // direct connection established, server exits
 	MsgError     MessageType = "error"      // something went wrong
 )
 
@@ -110,9 +111,8 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 func (p *Peer) readPump(h *Hub) {
 	defer p.conn.Close()
 
-	p.conn.SetReadDeadline(time.Now().Add(readTimeout))
-
 	for {
+		p.conn.SetReadDeadline(time.Now().Add(readTimeout))
 		_, raw, err := p.conn.ReadMessage()
 		if err != nil {
 			log.Printf("Read error: %v", err)
@@ -151,6 +151,9 @@ func (h *Hub) handleMessage(p *Peer, msg Message) {
 		// Peer is registering with a token code.
 		// Either creates a new session (first peer) or completes one (second peer).
 		h.handleRegister(p, msg.Code)
+
+	case MsgPublicKey:
+		h.handleEndpoint(p, msg)
 
 	case MsgEndpoint:
 		// Peer is sharing its STUN endpoint.
@@ -302,7 +305,7 @@ func (h *Hub) cleanupExpiredSessions() {
 
 	now := time.Now()
 	for code, session := range h.sessions {
-		if now.Sub(session.CreatedAt) > handshakeTimeout {
+		if session.PeerB != nil && now.Sub(session.CreatedAt) > handshakeTimeout || session.PeerB == nil && now.Sub(session.CreatedAt) > 2*time.Minute {
 			log.Printf("Session %s expired — cleaning up", code)
 			if session.PeerA != nil {
 				session.PeerA.sendError("session timeout")
