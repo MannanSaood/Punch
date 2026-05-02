@@ -26,7 +26,8 @@ const (
 	MsgEndpoint  MessageType = "endpoint"   // peer shares its STUN-derived public endpoint
 	MsgRelay     MessageType = "relay"      // fallback: relay a packet to the other peer
 	MsgHandshake  MessageType = "handshake"
-	MsgPublicKey  MessageType = "publickey"  // direct connection established, server exits
+	MsgPublicKey  MessageType = "publickey"
+	MsgTransfer   MessageType = "transfer"  // direct connection established, server exits
 	MsgError     MessageType = "error"      // something went wrong
 )
 
@@ -153,6 +154,9 @@ func (h *Hub) handleMessage(p *Peer, msg Message) {
 		h.handleRegister(p, msg.Code)
 
 	case MsgPublicKey:
+		h.handleEndpoint(p, msg)
+
+	case MsgTransfer:
 		h.handleEndpoint(p, msg)
 
 	case MsgEndpoint:

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Punch — Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg:        #0a0a0a;
+    --surface:   #111111;
+    --border:    #1e1e1e;
+    --accent:    #00ff88;
+    --accent2:   #ff6b35;
+    --accent3:   #4488ff;
+    --muted:     #444;
+    --text:      #e0e0e0;
+    --text-dim:  #666;
+    --relay-col: #ff6b35;
+    --direct-col:#00ff88;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline effect */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo span { color: var(--text-dim); font-weight: 400; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .header-meta {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  main {
+    padding: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Stats row */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat.green::before  { background: var(--accent); }
+  .stat.orange::before { background: var(--accent2); }
+  .stat.blue::before   { background: var(--accent3); }
+  .stat.dim::before    { background: var(--muted); }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .stat.green  .stat-value { color: var(--accent); }
+  .stat.orange .stat-value { color: var(--accent2); }
+  .stat.blue   .stat-value { color: var(--accent3); }
+  .stat.dim    .stat-value { color: var(--text); }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  /* Section */
+  .section { margin-bottom: 40px; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .section-count {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+  }
+
+  /* Session table */
+  .table { width: 100%; border-collapse: collapse; }
+
+  .table th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .table tr:last-child td { border-bottom: none; }
+
+  .table tr:hover td { background: var(--surface); }
+
+  .table tbody tr {
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .badge-direct {
+    background: rgba(0,255,136,0.1);
+    color: var(--direct-col);
+    border: 1px solid rgba(0,255,136,0.3);
+  }
+
+  .badge-relay {
+    background: rgba(255,107,53,0.1);
+    color: var(--relay-col);
+    border: 1px solid rgba(255,107,53,0.3);
+  }
+
+  .badge-tno {
+    background: rgba(68,136,255,0.1);
+    color: var(--accent3);
+    border: 1px solid rgba(68,136,255,0.3);
+  }
+
+  .badge-qno {
+    background: rgba(255,200,0,0.1);
+    color: #ffc800;
+    border: 1px solid rgba(255,200,0,0.3);
+  }
+
+  .badge-pno {
+    background: rgba(180,0,255,0.1);
+    color: #cc44ff;
+    border: 1px solid rgba(180,0,255,0.3);
+  }
+
+  /* Token cards */
+  .token-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .token-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+  }
+
+  .token-card:hover { border-color: var(--muted); }
+
+  .token-code {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .token-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .token-meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .token-meta-row span:last-child { color: var(--text); }
+
+  .token-bar {
+    margin-top: 14px;
+    height: 3px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .token-bar-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: var(--accent);
+    transition: width 0.5s ease;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    border: 1px dashed var(--border);
+  }
+
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+  .empty-text { font-size: 12px; line-height: 1.8; }
+  .empty-cmd  { color: var(--accent); margin-top: 8px; }
+
+  /* Data transfer */
+  .bytes { color: var(--accent3); }
+  .duration { color: var(--text-dim); }
+
+  /* Error state */
+  .error-banner {
+    background: rgba(255,0,0,0.05);
+    border: 1px solid rgba(255,0,0,0.2);
+    color: #ff4444;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    font-size: 12px;
+  }
+
+  /* Refresh */
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    header { padding: 16px 20px; }
+    main { padding: 20px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="status-dot"></div>
+    👊 PUNCH
+    <span>/ local dashboard</span>
+  </div>
+  <div class="header-meta">
+    <div id="last-updated">loading...</div>
+    <div>localhost · zero external requests</div>
+  </div>
+</header>
+
+<main>
+  <div id="error-banner" class="error-banner" style="display:none"></div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat green">
+      <div class="stat-label">Total Sessions</div>
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-sub">all time</div>
+    </div>
+    <div class="stat orange">
+      <div class="stat-label">Via Relay</div>
+      <div class="stat-value" id="stat-relay">—</div>
+      <div class="stat-sub">encrypted fallback</div>
+    </div>
+    <div class="stat blue">
+      <div class="stat-label">Data Moved</div>
+      <div class="stat-value" id="stat-data">—</div>
+      <div class="stat-sub">sent + received</div>
+    </div>
+    <div class="stat dim">
+      <div class="stat-label">Active Tokens</div>
+      <div class="stat-value" id="stat-tokens">—</div>
+      <div class="stat-sub">Q-No + P-No</div>
+    </div>
+  </div>
+
+  <!-- Sessions -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Session History</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="section-count" id="session-count">0 sessions</span>
+        <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div id="sessions-container">
+      <div class="empty">
+        <div class="empty-icon">📡</div>
+        <div class="empty-text">
+          No sessions yet.<br>
+          <span class="empty-cmd">punch generate --log</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tokens -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Active Tokens</div>
+      <span class="section-count" id="token-count">0 tokens</span>
+    </div>
+    <div id="tokens-container">
+      <div class="empty">
+        <div class="empty-icon">🔑</div>
+        <div class="empty-text">
+          No stored tokens.<br>
+          <span class="empty-cmd">punch generate --uses 5</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  function fmt_bytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/(1024*1024)).toFixed(2) + ' MB';
+  }
+
+  function fmt_duration(secs) {
+    if (secs < 60) return secs + 's';
+    if (secs < 3600) return Math.floor(secs/60) + 'm ' + (secs%60) + 's';
+    return Math.floor(secs/3600) + 'h ' + Math.floor((secs%3600)/60) + 'm';
+  }
+
+  function fmt_time(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  }
+
+  function conn_badge(type) {
+    return type === 'Direct'
+      ? '<span class="badge badge-direct">⚡ direct</span>'
+      : '<span class="badge badge-relay">↺ relay</span>';
+  }
+
+  function token_badge(type) {
+    const map = {
+      'T-No': '<span class="badge badge-tno">T-No</span>',
+      'Q-No': '<span class="badge badge-qno">Q-No</span>',
+      'P-No': '<span class="badge badge-pno">P-No</span>',
+    };
+    return map[type] || type;
+  }
+
+  async function load() {
+    document.getElementById('last-updated').textContent =
+      'updated ' + new Date().toLocaleTimeString();
+
+    // Load sessions
+    try {
+      const res = await fetch('/api/sessions');
+      const sessions = await res.json();
+
+      document.getElementById('stat-total').textContent = sessions.length;
+      document.getElementById('session-count').textContent = sessions.length + ' sessions';
+
+      const relayCount = sessions.filter(s => s.connection_type === 'Relay').length;
+      document.getElementById('stat-relay').textContent = relayCount;
+
+      const totalBytes = sessions.reduce((a, s) => a + s.bytes_sent + s.bytes_received, 0);
+      document.getElementById('stat-data').textContent = fmt_bytes(totalBytes);
+
+      const container = document.getElementById('sessions-container');
+
+      if (sessions.length === 0) {
+        container.innerHTML = `<div class="empty">
+          <div class="empty-icon">📡</div>
+          <div class="empty-text">No sessions yet.<br>
+          <span class="empty-cmd">punch generate --log</span></div></div>`;
+        return;
+      }
+
+      const rows = [...sessions].reverse().map((s, i) => {
+        const duration = Math.abs(
+          Math.round((new Date(s.ended_at) - new Date(s.started_at)) / 1000)
+        );
+        return `<tr style="animation-delay:${i*30}ms">
+          <td style="color:var(--text-dim);font-size:11px">${fmt_time(s.started_at)}</td>
+          <td><code style="color:var(--accent);letter-spacing:2px">${s.token_code}</code></td>
+          <td>${conn_badge(s.connection_type)}</td>
+          <td class="duration">${fmt_duration(duration)}</td>
+          <td class="bytes">${fmt_bytes(s.bytes_sent)}</td>
+          <td class="bytes">${fmt_bytes(s.bytes_received)}</td>
+        </tr>`;
+      }).join('');
+
+      container.innerHTML = `<table class="table">
+        <thead><tr>
+          <th>Time</th><th>Token</th><th>Connection</th>
+          <th>Duration</th><th>Sent</th><th>Received</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+    } catch(e) {
+      document.getElementById('error-banner').style.display = 'block';
+      document.getElementById('error-banner').textContent =
+        'Could not load sessions: ' + e.message;
+    }
+
+    // Load tokens
+    try {
+      const res = await fetch('/api/tokens');
+      const tokens = await res.json();
+
+      document.getElementById('stat-tokens').textContent = tokens.length;
+      document.getElementById('token-count').textContent = tokens.length + ' tokens';
+
+      const container = document.getElementById('tokens-container');
+
+      if (tokens.length === 0) {
+        container.innerHTML = `<div class="empty">
+          <div class="empty-icon">🔑</div>
+          <div class="empty-text">No stored tokens.<br>
+          <span class="empty-cmd">punch generate --uses 5</span></div></div>`;
+        return;
+      }
+
+      const cards = tokens.map((t, i) => {
+        let bar = '';
+        let extra = '';
+
+        if (t.token_type && t.token_type.QNo) {
+          const rem = t.token_type.QNo.remaining;
+          const orig = rem; // we don't store original, just show remaining
+          bar = `<div class="token-bar">
+            <div class="token-bar-fill" style="width:100%"></div>
+          </div>`;
+          extra = `<div class="token-meta-row">
+            <span>remaining</span><span style="color:var(--accent)">${rem} uses</span>
+          </div>`;
+        }
+
+        if (t.token_type && t.token_type.PNo) {
+          const verified = t.token_type.PNo.verified;
+          extra = `<div class="token-meta-row">
+            <span>verified</span>
+            <span style="color:${verified ? 'var(--accent)' : 'var(--accent2)'}">
+              ${verified ? '✓ yes' : '✗ no — run: punch verify ' + t.code}
+            </span>
+          </div>`;
+        }
+
+        return `<div class="token-card" style="animation-delay:${i*50}ms">
+          <div class="token-code">${t.code}</div>
+          <div class="token-meta">
+            <div class="token-meta-row">
+              <span>type</span><span>${token_badge(Object.keys(t.token_type || {TNo:''})[0].replace('QNo','Q-No').replace('PNo','P-No').replace('TNo','T-No'))}</span>
+            </div>
+            <div class="token-meta-row">
+              <span>created</span><span>${fmt_time(t.created_at)}</span>
+            </div>
+            <div class="token-meta-row">
+              <span>last used</span>
+              <span>${t.last_used ? fmt_time(t.last_used) : '—'}</span>
+            </div>
+            ${extra}
+          </div>
+          ${bar}
+        </div>`;
+      }).join('');
+
+      container.innerHTML = `<div class="token-grid">${cards}</div>`;
+
+    } catch(e) {
+      console.error('Token load error:', e);
+    }
+  }
+
+  // Auto refresh every 10 seconds
+  load();
+  setInterval(load, 10000);
+</script>
+</body>
+</html>

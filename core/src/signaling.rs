@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use x25519_dalek::PublicKey;
 use crate::crypto::{SessionCipher, SessionKeypair};
+use crate::transfer::TransferMeta;
 use crate::logger::ConnectionType;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,6 +18,7 @@ pub enum MsgType {
     Handshake,
     Error,
     PublicKey,  // new: for key exchange
+    Transfer,   // file transfer metadata
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -232,7 +234,30 @@ impl SignalingClient {
         Ok(())
     }
 
-    async fn send(&mut self, msg: SignalMessage) -> anyhow::Result<()> {
+    /// Send file transfer metadata to the receiver via signalling server.
+    pub async fn send_transfer_meta(&mut self, meta: &TransferMeta) -> anyhow::Result<()> {
+        let payload = serde_json::to_value(meta)?;
+        self.send(SignalMessage {
+            msg_type: MsgType::Transfer,
+            code: Some(self.code.clone()),
+            payload: Some(payload),
+        }).await
+    }
+
+    /// Wait to receive file transfer metadata from the sender.
+    pub async fn wait_for_transfer_meta(&mut self) -> anyhow::Result<TransferMeta> {
+        loop {
+            match self.recv().await? {
+                SignalMessage { msg_type: MsgType::Transfer, payload: Some(p), .. } => {
+                    let meta: TransferMeta = serde_json::from_value(p)?;
+                    return Ok(meta);
+                }
+                _ => continue,
+            }
+        }
+    }
+
+        async fn send(&mut self, msg: SignalMessage) -> anyhow::Result<()> {
         let json = serde_json::to_string(&msg)?;
         self.ws.send(Message::Text(json)).await?;
         Ok(())

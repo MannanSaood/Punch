@@ -59,3 +59,13 @@ x25519-dalek = { version = "2", features = ["static_secrets"] }
 
 # Random key generation
 rand_core = { version = "0.6", features = ["getrandom"] }
+
+# Local dashboard server
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs", "cors"] }
+
+# File transfer
+sha2 = "0.10"
+indicatif = "0.17"
+futures = "0.3"
