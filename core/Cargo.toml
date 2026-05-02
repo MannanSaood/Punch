@@ -69,3 +69,6 @@ tower-http = { version = "0.5", features = ["fs", "cors"] }
 sha2 = "0.10"
 indicatif = "0.17"
 futures = "0.3"
+
+# Iroh — p2p QUIC transport with built-in hole punching and relay
+iroh = "0.96"

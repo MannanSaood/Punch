@@ -195,8 +195,9 @@ pub async fn send(
         anyhow::bail!("File not found: {}", file_path);
     }
 
-    // Prepare the file — split into chunks, compute checksums
-    let (mut meta, listener) = crate::transfer::prepare_send(&path).await?;
+    // Prepare file — creates Iroh endpoint, gets NodeAddr automatically
+    // Iroh handles STUN, hole punching, and relay fallback internally
+    let (meta, endpoint) = crate::transfer::prepare_send(&path).await?;
 
     // Show sender-side safety info + fingerprint
     crate::safety::display_sender_info(
@@ -208,41 +209,22 @@ pub async fn send(
     // Warn about resume availability based on token type
     warn_resume_availability(&meta).await;
 
-    // Get our public IP via STUN so receiver can connect directly
-    let stun = crate::stun::StunClient::new();
-    let listener_port = listener.local_addr()?.port();
-    let public_addr = match stun.discover().await {
-        Some(addr) => {
-            let a = format!("{}:{}", addr.ip(), listener_port);
-            println!("🌐 Public address: {}", a);
-            a
-        }
-        None => {
-            // STUN failed — fall back to local machine IP
-            // Works for same-network and same-machine transfers
-            let local_ip = local_ip().await;
-            let a = format!("{}:{}", local_ip, listener_port);
-            println!("⚠️  STUN failed — using local address: {}", a);
-            println!("   Cross-network transfers may not work without STUN.");
-            a
-        }
-    };
-
-    meta.sender_addr = public_addr;
-
-    // Generate a code for this transfer
+    // Generate a T-No code for this transfer
     let token = crate::token::Token::generate(None, false);
-    println!("\nT-No: {}", token.code);
-    println!("Share this code with the receiver.\n");
-    println!("Waiting for receiver...\n");
+    println!("
+T-No: {}", token.code);
+    println!("Share this code with the receiver.
+");
+    println!("Waiting for receiver...
+");
 
-    // Signal via server — share file metadata
+    // Signal via server — share file metadata including Iroh NodeAddr
     let mut client = SignalingClient::connect(&server, &token.code).await?;
     client.wait_for_peer().await?;
     client.send_transfer_meta(&meta).await?;
 
-    // Run the sender — streams chunks directly to receiver
-    crate::transfer::run_sender(&path, listener, &meta).await?;
+    // Serve chunks over Iroh QUIC — direct or relay, automatic
+    crate::transfer::run_sender(&path, endpoint, &meta).await?;
 
     Ok(())
 }
@@ -347,27 +329,5 @@ async fn warn_resume_availability(meta: &crate::transfer::TransferMeta) {
                 println!();
             }
         }
-    }
-}
-
-
-/// Get the local machine IP address for same-network transfers.
-/// Falls back to 127.0.0.1 if detection fails.
-async fn local_ip() -> String {
-    // Connect a UDP socket to a public address (no data sent)
-    // This tricks the OS into revealing which local IP it would use
-    match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
-        Ok(socket) => {
-            match socket.connect("8.8.8.8:80").await {
-                Ok(_) => {
-                    match socket.local_addr() {
-                        Ok(addr) => addr.ip().to_string(),
-                        Err(_) => "127.0.0.1".to_string(),
-                    }
-                }
-                Err(_) => "127.0.0.1".to_string(),
-            }
-        }
-        Err(_) => "127.0.0.1".to_string(),
     }
 }

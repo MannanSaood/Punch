@@ -331,7 +331,7 @@ punch/
 v0.1 ✅  Connection + relay fallback
 v0.2 ✅  Encrypt relay (X25519 + ChaCha20-Poly1305)
 v0.3 ✅  Token enforcement (T-No, Q-No, P-No) + listen command
-v0.4 ✅  File transfer — IDM chunked, resumable, safe
+v0.4 ✅  File transfer — IDM chunked, resumable, safe, with iroh QUIC
 v0.5 🔜  Port forwarding — punch forward <port> <code>
 v0.6 🔜  Remote terminal — punch shell + consent + monitoring
 v0.7 🔜  Local dashboard — session and token visualisation
