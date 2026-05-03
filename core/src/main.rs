@@ -9,6 +9,7 @@ mod logger;
 mod dashboard_server;
 mod transfer;
 mod safety;
+mod forward;
 
 use clap::{Parser, Subcommand};
 
@@ -19,7 +20,7 @@ const STARTUP_NOTE: &str = "Note: Punch works best on WiFi. Mobile/corporate net
 #[command(
     name = "punch",
     about = "Punches through networks to connect two devices directly",
-    version = "0.4.0",
+    version = "0.5.0",
     author = "Syed Mannan Saood"
 )]
 struct Cli {
@@ -73,6 +74,12 @@ enum Commands {
         code: String,
     },
 
+    /// Port forwarding (expose a port, or connect to a peer's port)
+    Forward {
+        #[command(subcommand)]
+        action: ForwardAction,
+    },
+
     /// Send a file to a peer
     Send {
         /// Path to the file to send
@@ -95,9 +102,38 @@ enum Commands {
     Dashboard,
 }
 
+#[derive(Subcommand)]
+enum ForwardAction {
+    /// Expose a local port to a peer (run where the service listens)
+    Expose {
+        /// Local port to expose
+        port: u16,
+        /// Enable UDP forwarding in addition to TCP
+        #[arg(long)]
+        udp: bool,
+        /// Number of uses before token expires (Q-No)
+        #[arg(long)]
+        uses: Option<u32>,
+        /// Create a permanent access token (P-No)
+        #[arg(long)]
+        permanent: bool,
+    },
+    /// Connect to a peer's forwarded port (run on the client machine)
+    Connect {
+        /// Connection code from the exposer
+        code: String,
+        /// Local port to listen on (auto-assigned if omitted)
+        #[arg(long, short)]
+        local: Option<u16>,
+        /// Enable UDP (must match exposer)
+        #[arg(long)]
+        udp: bool,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+let cli = Cli::parse();
 
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
@@ -127,6 +163,24 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Revoke { code } => {
             cli::revoke(code).await?;
+        }
+        Commands::Forward { action } => {
+            eprintln!("
+{}
+", STARTUP_NOTE);
+            match action {
+                ForwardAction::Expose {
+                    port,
+                    udp,
+                    uses,
+                    permanent,
+                } => {
+                    cli::forward_expose(cli.server, port, udp, uses, permanent).await?;
+                }
+                ForwardAction::Connect { code, local, udp } => {
+                    cli::forward_connect(cli.server, code, local, udp).await?;
+                }
+            }
         }
         Commands::Send { file } => {
             eprintln!("

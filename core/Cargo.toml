@@ -72,3 +72,6 @@ futures = "0.3"
 
 # Iroh — p2p QUIC transport with built-in hole punching and relay
 iroh = "0.96"
+
+# Datagram payloads for Iroh UDP forward
+bytes = "1"

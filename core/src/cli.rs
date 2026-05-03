@@ -331,3 +331,129 @@ async fn warn_resume_availability(meta: &crate::transfer::TransferMeta) {
         }
     }
 }
+
+/// Handle `punch forward expose <port>`
+pub async fn forward_expose(
+    server: String,
+    port: u16,
+    udp: bool,
+    token_uses: Option<u32>,
+    permanent: bool,
+) -> anyhow::Result<()> {
+    use crate::forward::{ForwardProtocol, prepare_exposer, run_exposer};
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicU32;
+
+    let protocol = if udp { ForwardProtocol::Both } else { ForwardProtocol::Tcp };
+
+    // Generate token
+    let token = crate::token::Token::generate(token_uses, permanent);
+    crate::token_store::store_token(&token).await?;
+
+    println!("\n{}: {}", token.display_label(), token.code);
+    println!("Type:      {}", token.token_type);
+    println!("Protocol:  {}", protocol);
+    println!("Port:      {}\n", port);
+
+    if token.token_type == crate::token::TokenType::PNo {
+        println!("⚠️  Run: punch verify {} before first use\n", token.code);
+    }
+
+    // Prepare Iroh endpoint — handles STUN, hole punch, relay automatically
+    let (handshake, iroh_endpoint) = prepare_exposer(
+        port, protocol, &token.display_label()
+    ).await?;
+
+    println!("\nWaiting for connector...\n");
+
+    // Signal via server — send full handshake including EndpointAddr
+    let mut client = SignalingClient::connect(&server, &token.code).await?;
+    client.wait_for_peer().await?;
+
+    // Enforce token policy
+    match crate::token_store::check_and_consume(&token.code).await {
+        Ok(()) => {}
+        Err(e) => {
+            println!("❌ Connection rejected: {}", e);
+            return Ok(());
+        }
+    }
+
+    // Send full handshake — includes EndpointAddr, no separate quinn_addr needed
+    client.send_forward_handshake(&handshake).await?;
+
+    let active_streams = Arc::new(AtomicU32::new(0));
+    run_exposer(iroh_endpoint, &handshake, active_streams).await?;
+
+    Ok(())
+}
+
+/// Handle `punch forward connect <code>`
+pub async fn forward_connect(
+    server: String,
+    code: String,
+    local_port: Option<u16>,
+    _udp: bool,
+) -> anyhow::Result<()> {
+    use crate::forward::run_connector;
+    use std::io::Write;
+
+    println!("Connecting with code: {}\n", code);
+
+    let mut client = SignalingClient::connect(&server, &code).await?;
+
+    // Get full handshake from exposer — contains EndpointAddr
+    let handshake = client.wait_for_forward_handshake().await?;
+
+    // Show consent prompt
+    println!("─────────────────────────────────────────");
+    println!("  🔀 Incoming port forward request");
+    println!("─────────────────────────────────────────");
+    println!("  Remote port:  {} ({})", handshake.allowed_port, handshake.protocol);
+    println!("  Token type:   {}", handshake.token_type);
+    println!("  Fingerprint:  {}", handshake.session_fingerprint);
+    println!("─────────────────────────────────────────");
+    println!();
+    println!("  Verify fingerprint with exposer before accepting.");
+    print!("  Connect? (yes/no): ");
+    std::io::stdout().flush()?;
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    if input.trim().to_lowercase() != "yes" {
+        println!("Cancelled.");
+        return Ok(());
+    }
+
+    // Auto-assign local port if not specified
+    let local = match local_port {
+        Some(p) => p,
+        None    => find_free_port().await?,
+    };
+
+    println!();
+
+    // Write audit log
+    crate::forward::write_forward_log(crate::forward::ForwardAuditEntry {
+        timestamp:       chrono::Utc::now(),
+        role:            "connector".to_string(),
+        port:            handshake.allowed_port,
+        protocol:        handshake.protocol.to_string(),
+        token_type:      handshake.token_type.clone(),
+        fingerprint:     handshake.session_fingerprint.clone(),
+        streams_opened:  0,
+        bytes_forwarded: 0,
+        ended_at:        chrono::Utc::now(),
+    }).await?;
+
+    // Connect via Iroh — direct or relay, automatic, no STUN needed
+    run_connector(&handshake, local).await?;
+
+    Ok(())
+}
+
+/// Find a free local port for auto-assignment.
+async fn find_free_port() -> anyhow::Result<u16> {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    Ok(listener.local_addr()?.port())
+}

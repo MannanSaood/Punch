@@ -19,6 +19,7 @@ pub enum MsgType {
     Error,
     PublicKey,  // new: for key exchange
     Transfer,   // file transfer metadata
+    Forward,    // port forward handshake
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -234,7 +235,53 @@ impl SignalingClient {
         Ok(())
     }
 
-    /// Send file transfer metadata to the receiver via signalling server.
+    /// Send port forward handshake to connector.
+    pub async fn send_forward_handshake(&mut self, handshake: &crate::forward::ForwardHandshake) -> anyhow::Result<()> {
+        let payload = serde_json::to_value(handshake)?;
+        self.send(SignalMessage {
+            msg_type: MsgType::Forward,
+            code: Some(self.code.clone()),
+            payload: Some(payload),
+        }).await
+    }
+
+    /// Wait to receive port forward handshake from exposer.
+    pub async fn wait_for_forward_handshake(&mut self) -> anyhow::Result<crate::forward::ForwardHandshake> {
+        loop {
+            match self.recv().await? {
+                SignalMessage { msg_type: MsgType::Forward, payload: Some(p), .. } => {
+                    return Ok(serde_json::from_value(p)?);
+                }
+                _ => continue,
+            }
+        }
+    }
+
+    /// Send Quinn address to connector so they know where to connect.
+    pub async fn send_quinn_addr(&mut self, addr: &str) -> anyhow::Result<()> {
+        let payload = serde_json::json!({ "quinn_addr": addr });
+        self.send(SignalMessage {
+            msg_type: MsgType::Endpoint,
+            code: Some(self.code.clone()),
+            payload: Some(payload),
+        }).await
+    }
+
+    /// Wait to receive Quinn address from exposer.
+    pub async fn wait_for_quinn_addr(&mut self) -> anyhow::Result<String> {
+        loop {
+            match self.recv().await? {
+                SignalMessage { msg_type: MsgType::Endpoint, payload: Some(p), .. } => {
+                    if let Some(addr) = p["quinn_addr"].as_str() {
+                        return Ok(addr.to_string());
+                    }
+                }
+                _ => continue,
+            }
+        }
+    }
+
+        /// Send file transfer metadata to the receiver via signalling server.
     pub async fn send_transfer_meta(&mut self, meta: &TransferMeta) -> anyhow::Result<()> {
         let payload = serde_json::to_value(meta)?;
         self.send(SignalMessage {
