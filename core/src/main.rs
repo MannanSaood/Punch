@@ -10,6 +10,8 @@ mod dashboard_server;
 mod transfer;
 mod safety;
 mod forward;
+mod shell;
+mod shell_config;
 
 use clap::{Parser, Subcommand};
 
@@ -20,7 +22,7 @@ const STARTUP_NOTE: &str = "Note: Punch works best on WiFi. Mobile/corporate net
 #[command(
     name = "punch",
     about = "Punches through networks to connect two devices directly",
-    version = "0.5.0",
+    version = "0.6.0",
     author = "Syed Mannan Saood"
 )]
 struct Cli {
@@ -80,6 +82,12 @@ enum Commands {
         action: ForwardAction,
     },
 
+    /// Remote terminal access
+    Shell {
+        #[command(subcommand)]
+        action: ShellAction,
+    },
+
     /// Send a file to a peer
     Send {
         /// Path to the file to send
@@ -131,6 +139,24 @@ enum ForwardAction {
     },
 }
 
+#[derive(Subcommand)]
+enum ShellAction {
+    /// Allow a remote client to access a shell on this machine (run on Device B)
+    Host {
+        /// Number of uses before token expires (Q-No)
+        #[arg(long)]
+        uses: Option<u32>,
+        /// Create a permanent access token (P-No)
+        #[arg(long)]
+        permanent: bool,
+    },
+    /// Connect to a remote shell (run on Device A)
+    Connect {
+        /// Connection code from the host
+        code: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
 let cli = Cli::parse();
@@ -179,6 +205,19 @@ let cli = Cli::parse();
                 }
                 ForwardAction::Connect { code, local, udp } => {
                     cli::forward_connect(cli.server, code, local, udp).await?;
+                }
+            }
+        }
+        Commands::Shell { action } => {
+            eprintln!("
+{}
+", STARTUP_NOTE);
+            match action {
+                ShellAction::Host { uses, permanent } => {
+                    cli::shell_host(cli.server, uses, permanent).await?;
+                }
+                ShellAction::Connect { code } => {
+                    cli::shell_connect(cli.server, code).await?;
                 }
             }
         }

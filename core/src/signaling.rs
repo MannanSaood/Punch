@@ -20,6 +20,7 @@ pub enum MsgType {
     PublicKey,  // new: for key exchange
     Transfer,   // file transfer metadata
     Forward,    // port forward handshake
+    Shell,      // shell session handshake
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -233,6 +234,28 @@ impl SignalingClient {
         }
 
         Ok(())
+    }
+
+    /// Send shell handshake to client.
+    pub async fn send_shell_handshake(&mut self, h: &crate::shell::ShellHandshake) -> anyhow::Result<()> {
+        let payload = serde_json::to_value(h)?;
+        self.send(SignalMessage {
+            msg_type: MsgType::Shell,
+            code: Some(self.code.clone()),
+            payload: Some(payload),
+        }).await
+    }
+
+    /// Wait to receive shell handshake from host.
+    pub async fn wait_for_shell_handshake(&mut self) -> anyhow::Result<crate::shell::ShellHandshake> {
+        loop {
+            match self.recv().await? {
+                SignalMessage { msg_type: MsgType::Shell, payload: Some(p), .. } => {
+                    return Ok(serde_json::from_value(p)?);
+                }
+                _ => continue,
+            }
+        }
     }
 
     /// Send port forward handshake to connector.

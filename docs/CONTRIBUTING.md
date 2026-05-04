@@ -6,7 +6,7 @@ Thanks for wanting to contribute. Punch is open source and zero-profit — contr
 
 ## Before You Start
 
-Read the [README](../README.md), [USAGE guide](USAGE.md), and [ROADMAP](ROADMAP.md) first.
+Read the [README](../README.md), [USAGE guide](../USAGE.md), and [ROADMAP](ROADMAP.md) first.
 Understand what Punch is before adding to it.
 
 **The core philosophy:** simple, zero-knowledge, ephemeral.

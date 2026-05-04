@@ -1,268 +1,395 @@
 <div align="center">
 
-# 👊 Punch
+```
+██████╗ ██╗   ██╗███╗   ██╗ ██████╗██╗  ██╗
+██╔══██╗██║   ██║████╗  ██║██╔════╝██║  ██║
+██████╔╝██║   ██║██╔██╗ ██║██║     ███████║
+██╔═══╝ ██║   ██║██║╚██╗██║██║     ██╔══██║
+██║     ╚██████╔╝██║ ╚████║╚██████╗██║  ██║
+╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝
+```
 
-**Punches through networks to connect two devices directly.**
+### **Punches through networks. Connects two devices. Gets out of the way.**
 
-No VPN. No account. No cloud middleman. No persistent network overlay.
-Just a hole, just for that session.
+*No VPN. No account. No cloud middleman. No persistent overlay. No bullshit.*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Built with Rust](https://img.shields.io/badge/core-Rust-orange)](https://www.rust-lang.org/)
-[![Server in Go](https://img.shields.io/badge/server-Go-cyan)](https://golang.org/)
-[![Version](https://img.shields.io/badge/version-0.4.0-green)]()
-[![Open Source](https://img.shields.io/badge/open%20source-yes-brightgreen)]()
+<br/>
 
-[Install](#install) · [Quick Start](#quick-start) · [Commands](#commands) · [Usage Guide](docs/USAGE.md) · [Self-Host](#self-hosting) · [Roadmap](docs/ROADMAP.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Rust](https://img.shields.io/badge/core-Rust-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![Go](https://img.shields.io/badge/server-Go-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![Version](https://img.shields.io/badge/version-0.6.0-22c55e?style=flat-square)]()
+[![Built in Bengaluru](https://img.shields.io/badge/built%20in-Bengaluru-ff6b35?style=flat-square)]()
+
+<br/>
+
+**[↓ Install](#-install) · [Quick Start](#-quick-start) · [All Commands](#-commands) · [How It Works](#-how-it-works) · [Self-Host](#-self-hosting) · [Roadmap](#-roadmap)**
+
+<br/>
 
 </div>
 
 ---
 
-## What is Punch?
+## The Problem
 
-Punch is a lightweight, ephemeral peer-to-peer connectivity tool.
+You want to share your screen, send a file, forward a port, or access your home server from anywhere. Here's what the world offers you:
 
-You want to connect two devices on different networks. The usual options are painful:
+| Tool | What it actually means |
+|------|----------------------|
+| **ngrok** | Your traffic routes through their servers. They can read it. |
+| **Tailscale** | Create an account → install → login → get assigned a VPN IP → now you're in a persistent mesh. Just to share one port. |
+| **Port forwarding** | Requires router access, exposes your real IP, breaks when your ISP changes it. |
+| **SSH tunnels** | Need a publicly reachable server to bounce through. |
 
-- **ngrok** — your traffic routes through their servers
-- **Tailscale** — create account, install, login, join a persistent VPN mesh
-- **Port forwarding** — requires router access, exposes your IP, breaks on dynamic IPs
+**None of these do the simple thing:** connect Device A to Device B, directly, temporarily, and then disappear.
 
-Punch does one thing: punches a direct hole between two devices and gets out of the way.
-
-```
-Device A                  Punch Server               Device B
-   |                           |                         |
-   |── generate code ─────────▶|                         |
-   |◀─ T-No: 4829 ─────────────|                         |
-   |                           |◀── connect 4829 ────────|
-   |◀──────────── handshake ──────────────────────────▶ |
-   |                           |                         |
-   |◀══════════ direct p2p connection ════════════════▶ |
-   |                    (server exits)                   |
-```
-
-The server is a matchmaker. Once the handshake is done, it forgets you both exist.
+Punch does the simple thing.
 
 ---
 
-## What can Punch do?
+## What Punch Actually Does
 
-| Feature | Command | Status |
-|---------|---------|--------|
-| Direct p2p connection | `punch generate` / `punch connect` | ✅ v0.1 |
-| Encrypted relay fallback | automatic | ✅ v0.2 |
-| Token access control | `--uses N` / `--permanent` | ✅ v0.3 |
-| File transfer | `punch send` / `punch receive` | ✅ v0.4 |
-| Port forwarding | `punch forward` | 🔜 v0.5 |
-| Remote terminal | `punch shell` | 🔜 v0.6 |
-| Local dashboard | `punch dashboard` | 🔜 v0.7 |
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   punch generate          →   T-No: 4829                            │
+│                               Waiting for peer...                   │
+│                                                                     │
+│   punch connect 4829      →   Punching...                           │
+│                              ✅ Direct connection established.     |
+│                                                                     │
+│   That's it. Server forgot you both exist.                          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+One code. Two devices. Done.
 
 ---
 
-## Install
+## 📦 What's Inside
 
-### Download binary (no setup needed)
+| Feature | Command | Status | Transport |
+|---------|---------|--------|-----------|
+| P2P connection | `punch generate` / `punch connect` | ✅ **Shipped** | QUIC + relay |
+| Encrypted relay fallback | automatic | ✅ **Shipped** | X25519 + ChaCha20 |
+| Token access control | T-No · Q-No · P-No | ✅ **Shipped** | — |
+| File transfer | `punch send` / `punch receive` | ✅ **Shipped** | Iroh QUIC |
+| Port forwarding | `punch forward` | ✅ **Shipped** | Iroh QUIC |
+| Remote terminal | `punch shell host` / `punch shell connect` | ✅ **Shipped** | Iroh QUIC + PTY (portable-pty, crossterm) |
+| Local dashboard | `punch dashboard` | 🔜 v0.7 | — |
+| Developer library | `punch-core` crate | 🔜 v0.8 | — |
 
-Go to [Releases](https://github.com/MannanSaood/Punch/releases) and download for your platform:
+---
 
-| Platform | File |
-|----------|------|
-| Windows | `punch-windows-x86_64.exe` |
-| Linux | `punch-linux-x86_64` |
-| macOS (Intel) | `punch-macos-x86_64` |
-| macOS (Apple Silicon) | `punch-macos-arm64` |
+## ⚡ Install
 
-### Build from source
+### Download (no Rust required)
+
+Grab the binary for your platform from [**Releases →**](https://github.com/MannanSaood/Punch/releases)
+
+| Platform | Binary |
+|----------|--------|
+| 🪟 Windows (x64) | `punch-windows-x86_64.exe` |
+| 🐧 Linux (x64) | `punch-linux-x86_64` |
+| 🍎 macOS (Intel) | `punch-macos-x86_64` |
+| 🍎 macOS (Apple Silicon) | `punch-macos-arm64` |
+
+**Windows — add to PATH:**
+```powershell
+# Move punch.exe somewhere permanent, then:
+$env:PATH += ";C:\path\to\punch"
+```
+
+**Linux / macOS:**
+```bash
+chmod +x punch-linux-x86_64
+sudo mv punch-linux-x86_64 /usr/local/bin/punch
+```
+
+### Build from Source
 ```bash
 git clone https://github.com/MannanSaood/Punch.git
 cd Punch/core
 cargo build --release
-# Binary at: target/release/punch
+# Binary: target/release/punch
 ```
 
-> Note: Punch works best on WiFi. Mobile/corporate networks fall back to encrypted relay.
+> ⚠️ Punch works best on WiFi. Mobile and corporate networks fall back to encrypted relay automatically.
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Connect two devices
 ```bash
-# Device A — generate a code
+# Device A
 punch generate
-# → T-No: 4829
-# → Waiting for peer...
+# T-No: 4829 — share this with Device B
 
-# Device B — connect
+# Device B
 punch connect 4829
-# → Punching...
-# → ✅ Punched! Direct connection established.
+# ✅ Punched! Direct connection established.
 ```
 
-### Send a file
+### Send a file (with safety checks)
 ```bash
-# Device A — send
-punch send video.mp4
-# → T-No: 6241
-# → Waiting for receiver...
+# Device A
+punch send invoice.pdf
+# T-No: 6241 — share this with Device B
 
-# Device B — receive to Downloads folder
+# Device B
 punch receive 6241 --dest ~/Downloads
-# → Shows consent prompt with file info and risk level
-# → Accept? (yes/no): yes
-# → Receiving...
+# Shows: filename, size, risk level, fingerprint
+# Accept? (yes/no): yes
+# ✅ Verified. Saved to ~/Downloads/invoice.pdf
 ```
 
-### Access your home server repeatedly
+### Send a large file (resumable)
 ```bash
-# Home server — first time only
-punch generate --uses 50
-# → Q-No: 7731
+# Device A — generate a reusable token
+punch generate --uses 5
+# Q-No: 7731
+
+punch send movie.mkv
+# 310 chunks × 4MB | 4 parallel Iroh QUIC streams
+
+# Device B
+punch receive 1234 --dest ~/Downloads
+# Drop mid-transfer? Just run the same command again.
+# ↩️ Resuming: 187/310 chunks already verified
+```
+
+### Forward a port (Jellyfin, dev server, anything)
+```bash
+# Device A — expose local Jellyfin
+punch forward expose 8096
+
+# T-No: 9182 — share this with Device B
+# 🔐 Fingerprint: 3a7f-12bc-88de
+
+# Device B
+punch forward connect 9182
+# Verify fingerprint: 3a7f-12bc-88de
+# Connect? (yes/no): yes
+# 🔀 TCP: localhost:54231 → remote:8096
+# Open http://localhost:54231 in your browser
+```
+
+### Forward TCP + UDP (game servers, VoIP)
+```bash
+punch forward expose 25565 --udp   # Minecraft
+punch forward connect <code> --udp
+```
+
+### Remote shell (host approves, full Iroh QUIC link)
+```bash
+# Device B — machine that runs the shell (prints a code)
+punch shell host --server ws://localhost:8080
+# Optional: punch shell host --uses 5   or   --permanent
+
+# Device A — connect with the code / verify fingerprint
+punch shell connect 4829 --server ws://localhost:8080
+# Host must answer consent prompts; then you get an interactive terminal (e.g. cmd.exe / $SHELL).
+# Host: Ctrl+K kills the session; client: Ctrl+C exits.
+```
+
+### Access your home server — every time
+```bash
+# Home server — once
+punch generate --uses 100
+# Q-No: 7731
 punch verify 7731
 
-# Home server — every reconnect
+# Home server — every reconnect (no new token generated)
 punch listen 7731
 
-# Your laptop — anywhere in the world
+# Your laptop — anywhere
 punch connect 7731
 ```
 
 ---
 
-## Commands
+## 🔑 Token System
 
-| Command | Description |
-|---------|-------------|
-| `punch generate` | Generate a T-No code and wait for peer |
-| `punch generate --uses N` | Generate a Q-No code (expires after N uses) |
-| `punch generate --permanent` | Generate a P-No permanent token |
-| `punch listen <code>` | Reconnect on existing token without consuming a use |
-| `punch connect <code>` | Connect to a waiting peer |
-| `punch send <file>` | Send a file directly to a peer |
-| `punch receive <code>` | Receive a file (saves to current directory) |
-| `punch receive <code> --dest <path>` | Receive a file to a specific location |
-| `punch verify <code>` | Verify a P-No token before first use |
-| `punch revoke <code>` | Revoke a token immediately |
-| `punch tokens` | List all active tokens |
-| `punch dashboard` | Open local session dashboard |
+The token type **is** the security policy. No settings menu, no dashboards, no OAuth.
 
-→ Full reference: [docs/USAGE.md](docs/USAGE.md)
-
----
-
-## Access Modes
-
-The token type **is** the security policy. No settings menu.
-
-| Mode | Command | Behaviour |
-|------|---------|-----------|
-| **T-No** | `punch generate` | Temporary. Single session. Expires immediately. |
-| **Q-No** | `punch generate --uses 5` | Quantised. Expires after N connections. Persisted locally. |
-| **P-No** | `punch generate --permanent` | Permanent. Requires `punch verify` before first use. |
-
----
-
-## File Transfer
-
-Punch sends files **directly peer to peer** — the server never sees your data.
-
-- **IDM-style parallel streams** — 4 concurrent TCP connections
-- **Dynamic chunk sizing** — 1MB to 64MB chunks based on file size
-- **Resumable** — drop mid-transfer, reconnect and continue exactly where you left off
-- **SHA256 verified** — per chunk and whole file
-- **Consent prompt** — receiver sees file name, size, risk level, and fingerprint before accepting
-- **Risk classification** — 🔴 executables, 🟡 archives, 🟢 media/documents
-- **Acceptance always logged** — `~/.punch/logs/transfers.json`
+```
+T-No  → Temporary     Single session. Expires immediately after use.
+Q-No  → Quantised     Expires after exactly N connections. Persisted locally.
+P-No  → Permanent     Lives forever. Requires explicit verification first.
+```
 
 ```bash
-# Send
-punch send movie.mkv
+punch generate                  # T-No: one shot
+punch generate --uses 10        # Q-No: 10 connections, then gone
+punch generate --permanent      # P-No: verify before first use
 
-# Receive to current directory
-punch receive 1234
+punch listen <code>             # reconnect on existing token, no use consumed
+punch tokens                    # see all active tokens
+punch revoke <code>             # kill a token immediately
+punch verify <code>             # activate a P-No token
+```
 
-# Receive to specific path
-punch receive 1234 --dest "C:\Users\DELL\Downloads"
+**Enforcement is on your device.** The server is zero-knowledge — it never sees or stores tokens.
+
+---
+
+## 📁 File Transfer
+
+Files go **directly peer to peer via Iroh QUIC**. The signalling server never sees a byte of your data.
+
+```
+< 100 MB   →  1 MB  chunks  (~100 chunks)
+100 MB–1 GB →  4 MB  chunks  (~250 chunks)
+1 GB–10 GB  → 16 MB  chunks  (~625 chunks)
+> 10 GB     → 64 MB  chunks  (manageable state)
+```
+
+**Every transfer has:**
+- 4 parallel QUIC streams (IDM-style)
+- SHA256 per chunk + whole file
+- Resumable — `.punch_partial` survives restarts and crashes
+- Idempotent chunks — ACK-lost-after-completion is handled correctly
+- Connection drops vs data corruption treated differently
+
+**Every receive has:**
+- Consent prompt before any data flows
+- Risk classification: 🔴 executables · 🟡 archives · 🟢 media/docs
+- Session fingerprint for verbal verification with sender
+- Acceptance always logged to `~/.punch/logs/transfers.json`
+
+```bash
+punch send video.mp4
+punch send setup.exe              # receiver sees 🔴 HIGH RISK warning
+
+punch receive 1234                # saves to current directory
 punch receive 1234 --dest ~/Downloads
+punch receive 1234 -d "C:\Users\UserName\Downloads"
 ```
 
 ---
 
-## Connection States
+## 🔀 Port Forwarding
 
-Punch is always transparent about what it's doing:
+Forward any TCP or UDP port directly between two devices. No relay bottleneck — traffic goes peer to peer over Iroh QUIC.
 
-```
-Punching...                          → attempting direct hole punch
-✅ Punched! Direct connection.        → p2p established, server is gone
-❌ Couldn't punch. Relaying...        → falling back to encrypted relay
-🔒 Connected via encrypted relay.     → end-to-end encrypted, server sees nothing
-🔑 Keys exchanged. End-to-end encrypted. → X25519 + ChaCha20-Poly1305
-```
-
----
-
-## Philosophy
-
-| Principle | What it means |
-|-----------|--------------|
-| **Zero knowledge server** | Server facilitates handshake only, never sees your traffic |
-| **Zero data stored centrally** | No accounts, no telemetry, no logs on our end |
-| **Zero profit** | MIT licensed, no premium tier, no VC money |
-| **Ephemeral by default** | Connections exist for a session, not forever |
-| **Transparent** | You always know what Punch is doing and why |
-| **Local first** | All logs, tokens, and state live on your device only |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                  punch CLI (Rust)                    │
-│  connection · file transfer · token enforcement      │
-│  X25519 key exchange · ChaCha20 encryption           │
-└──────────────────┬──────────────────────────────────┘
-                   │ WebSocket (handshake only)
-┌──────────────────▼──────────────────────────────────┐
-│              signalling server (Go)                  │
-│         stateless · matchmaker only · forgets        │
-└──────────────────┬──────────────────────────────────┘
-                   │ WebSocket (handshake only)
-┌──────────────────▼──────────────────────────────────┐
-│                  punch CLI (Rust)                    │
-│  connection · file transfer · token enforcement      │
-└──────────────────┬──────────────────────────────────┘
-                   │ local reads only
-┌──────────────────▼──────────────────────────────────┐
-│               local storage                          │
-│  ~/.punch/tokens.json · logs/ · transfers.json       │
-└─────────────────────────────────────────────────────┘
-
-File transfer: direct TCP peer to peer (server not involved)
-```
-
----
-
-## Self-Hosting
-
-Run your own signalling server. Punch is fully self-hostable.
+**Works for:**
+- Jellyfin / Plex media servers
+- Vite / webpack dev servers (handles both `127.0.0.1` and `[::1]`)
+- SSH (port 22)
+- Databases (Postgres 5432, MySQL 3306)
+- Minecraft and game servers
+- Anything that listens on a port
 
 ```bash
-# Docker
-docker run -p 8080:8080 mannansaood/punch-server
+# Expose (Device A — where the service runs)
+punch forward expose 8096                    # TCP only
+punch forward expose 25565 --udp            # TCP + UDP
+punch forward expose 3000 --uses 5          # Q-No: 5 sessions
+punch forward expose 22 --permanent         # P-No: always accessible
 
-# Or from source
+# Connect (Device B — where you want to access it)
+punch forward connect <code>                # auto-assigns local port
+punch forward connect <code> --local 8096  # specific local port
+punch forward connect <code> --udp         # enable UDP
+```
+
+**Security per session:**
+- Iroh QUIC with peer public key authentication (no MITM possible)
+- Port whitelist enforced via in-band handshake — only the agreed port, nothing else
+- Session fingerprint for verbal verification
+- Max 50 concurrent streams (DoS protection)
+- Full audit log at `~/.punch/logs/forward.json`
+
+---
+
+## 🔒 Security Model
+
+```
+Layer 1 — Transport:      Iroh QUIC · TLS 1.3 · peer public key auth
+Layer 2 — Relay:          X25519 key exchange · ChaCha20-Poly1305
+                          Server sees gibberish it cannot decrypt
+Layer 3 — Authorization:  Token policy enforced on your device
+                          Port whitelist enforced in-band
+Layer 4 — Integrity:      SHA256 per chunk (files) · stream framing (ports · shell data)
+Layer 5 — Consent:        Explicit accept before file receive
+                          Fingerprint verification before port forward
+Layer 6 — Audit:          Local logs only · never leaves your device
+```
+
+**What the server sees:**
+```
+✓ Two devices asked to be matched (a 4-digit code, temporarily)
+✓ The handshake (public keys, briefly, for encryption setup)
+✗ Your file contents (never)
+✗ Your port traffic (never)
+✗ Your identity (never)
+✗ Anything after the handshake (server exits the session)
+```
+
+---
+
+## 🔧 How It Works
+
+```
+                    ┌──────────────────────────────────┐
+                    │       Punch Signalling Server    │
+                    │    (Go · stateless · forgets)    │
+                    └──────────────┬───────────────────┘
+                   WebSocket       │       WebSocket
+                  (handshake only) │  (handshake only)
+                                   │
+          ┌────────────────────────┼────────────────────────┐
+          │                        │                        │
+  ┌───────▼──────────┐             │             ┌──────────▼───────┐
+  │   Device A       │             │             │    Device B      │
+  │   punch CLI      │◄────────────────────────►│    punch CLI      │
+  │   (Rust)         │    Iroh QUIC P2P          │    (Rust)        │
+  └──────────────────┘  (direct or relay.iroh)   └──────────────────┘
+          │                                               │
+          ▼                                               ▼
+   ~/.punch/                                       ~/.punch/
+   tokens.json                                     tokens.json
+   logs/sessions.json                              logs/sessions.json
+   logs/transfers.json                             logs/transfers.json
+   logs/forward.json                               logs/forward.json
+   logs/shell_sessions.json                        logs/shell_sessions.json
+```
+
+**Connection flow:**
+```
+1. Device A generates a code, registers with signalling server
+2. Device B enters the code, server matches them
+3. Both exchange cryptographic addresses (EndpointAddr)
+4. Server is done — exits the session, forgets everything
+5. Iroh attempts direct QUIC connection (hole punch)
+6. If blocked: automatic fallback to relay.iroh.network (encrypted)
+7. All subsequent traffic is peer-to-peer
+```
+
+---
+
+## 🏠 Self-Hosting
+
+The signalling server is tiny (stateless Go binary) and easy to self-host. You don't have to trust anyone's infrastructure.
+
+```bash
+# Docker (recommended)
+docker run -p 8080:8080 \
+  -e PUNCH_MAX_SESSIONS=1000 \
+  user/punch-server
+
+# From source
 cd server && go run cmd/main.go
 
 # Point CLI at your server
 punch generate --server ws://your-server.com:8080
 punch connect 1234 --server ws://your-server.com:8080
-
-# TLS (production)
-punch generate --server wss://your-server.com
+punch forward expose 8096 --server wss://your-server.com
+punch shell host --server ws://your-server.com:8080
+punch shell connect <code> --server ws://your-server.com:8080
 ```
 
 **Environment variables:**
@@ -273,96 +400,166 @@ punch generate --server wss://your-server.com
 | `PUNCH_RELAY_ENABLED` | `true` | Enable encrypted relay fallback |
 | `PUNCH_MAX_SESSIONS` | `1000` | Max concurrent sessions |
 
----
-
-## Local Data
-
-Everything Punch stores lives on your device. Nothing is sent anywhere.
-
-| Path | Contents | Always written? |
-|------|----------|-----------------|
-| `~/.punch/tokens.json` | Q-No and P-No token state | When tokens created |
-| `~/.punch/logs/sessions.json` | Session history | Only with `--log` |
-| `~/.punch/logs/transfers.json` | Transfer acceptance record | Always |
+**Public server:** `wss://punch-8o2u.onrender.com` (free tier, may sleep after inactivity)
 
 ---
 
-## Project Structure
+## 🗂️ Local Data
+
+Everything Punch stores lives on your device. Zero central storage.
+
+| Path | Contents | When written |
+|------|----------|-------------|
+| `~/.punch/tokens.json` | Q-No + P-No token state | On token create |
+| `~/.punch/logs/sessions.json` | Connection history | Only with `--log` |
+| `~/.punch/logs/transfers.json` | Transfer accept/reject | **Always** (safety record) |
+| `~/.punch/logs/forward.json` | Port forward sessions | On forward start |
+| `~/.punch/logs/shell_sessions.json` | Shell session audit (host) | After shell session ends |
+
+---
+
+## 📖 All Commands
+
+```bash
+# Connection
+punch generate                         # T-No: one-time code
+punch generate --uses N                # Q-No: N-use code
+punch generate --permanent             # P-No: permanent token
+punch listen <code>                    # reuse existing token
+punch connect <code>                   # connect to peer
+
+# Token management  
+punch tokens                           # list active tokens
+punch verify <code>                    # activate P-No token
+punch revoke <code>                    # kill token immediately
+
+# File transfer
+punch send <file>                      # send to peer
+punch receive <code>                   # receive to current dir
+punch receive <code> --dest <path>     # receive to specific path
+punch receive <code> -d <path>         # short flag
+
+# Port forwarding
+punch forward expose <port>            # expose TCP port
+punch forward expose <port> --udp     # expose TCP + UDP
+punch forward expose <port> --uses N  # Q-No token
+punch forward expose <port> --permanent # P-No token
+punch forward connect <code>           # connect (auto port)
+punch forward connect <code> --local <port>  # specific local port
+punch forward connect <code> --udp    # enable UDP
+
+# Remote shell
+punch shell host                      # T-No: share code with client
+punch shell host --uses N             # Q-No
+punch shell host --permanent          # P-No (verify before first use)
+punch shell connect <code>            # connect to host’s shell
+
+# Other
+punch dashboard                        # local web dashboard
+punch --server <url> <command>         # custom signalling server
+punch --log <command>                  # enable session logging
+punch --verbose <command>              # debug output
+```
+
+Full reference: [USAGE.md](USAGE.md)
+
+---
+
+## 🗺️ Roadmap
+
+```
+v0.1 ✅  P2P connection + encrypted relay fallback
+v0.2 ✅  X25519 key exchange + ChaCha20-Poly1305 relay encryption
+v0.3 ✅  T-No / Q-No / P-No token enforcement + punch listen
+v0.4 ✅  File transfer — Iroh QUIC, IDM chunked, resumable, consent
+v0.5 ✅  Port forwarding — TCP + UDP, Iroh QUIC, zero bottleneck
+v0.6 ✅  Remote terminal — punch shell + consent + local monitoring
+v0.7 🔜  Local dashboard — sessions, tokens, transfers, port logs
+v0.8 🔜  Developer library — punch-core on crates.io
+v1.0 🔜  Public launch — hardened, documented, distributed
+```
+
+---
+
+## 🏗️ Project Structure
 
 ```
 punch/
-├── core/                # Rust — CLI + hole punching + file transfer
-│   └── src/
-│       ├── main.rs      # Entry point, CLI commands
-│       ├── cli.rs       # Command handlers
-│       ├── punch.rs     # Hole punching engine
-│       ├── stun.rs      # STUN NAT traversal
-│       ├── signaling.rs # WebSocket signalling client
-│       ├── crypto.rs    # X25519 + ChaCha20 encryption
-│       ├── transfer.rs  # IDM-style file transfer
-│       ├── safety.rs    # Risk classification + consent
-│       ├── token.rs     # Token generation
-│       ├── token_store.rs # Token persistence + enforcement
-│       └── logger.rs    # Local session logging
-├── server/              # Go — signalling server
-│   ├── cmd/main.go
+├── core/src/
+│   ├── main.rs          CLI entry point + command definitions
+│   ├── cli.rs           Command handlers
+│   ├── punch.rs         Hole punching engine
+│   ├── stun.rs          STUN NAT discovery
+│   ├── signaling.rs     WebSocket signalling client
+│   ├── crypto.rs        X25519 + ChaCha20 relay encryption
+│   ├── transfer.rs      Iroh QUIC file transfer (IDM-style)
+│   ├── forward.rs       Iroh QUIC port forwarding (TCP + UDP)
+│   ├── shell.rs         Remote shell over Iroh QUIC + PTY
+│   ├── shell_config.rs  Shell blocklist, suspicious patterns, logs
+│   ├── safety.rs        Risk classification + consent prompts
+│   ├── token.rs         Token generation
+│   ├── token_store.rs   Token persistence + enforcement
+│   ├── logger.rs        Local session logging
+│   └── dashboard_server.rs  Local web dashboard server
+├── server/
+│   ├── cmd/main.go      Entry point
 │   └── internal/
-│       ├── signaling/hub.go
-│       ├── relay/
-│       └── config/
+│       ├── signaling/hub.go  Session matchmaking
+│       └── config/config.go  Server configuration
 ├── docs/
-│   ├── USAGE.md         # Complete command reference
-│   ├── SRS.md           # Software requirements spec
-│   ├── ROADMAP.md       # Version roadmap
-│   └── CONTRIBUTING.md  # Contribution guide
+│   ├── ROADMAP.md       Detailed version roadmap
+│   ├── SRS.md           Software requirements spec
+│   └── CONTRIBUTING.md  Contribution guide
 ├── .github/workflows/
-│   ├── ci.yml           # Build on every push
-│   └── release.yml      # Release binaries on tag
-├── render.yaml          # Render deployment config
-├── Dockerfile           # Server container
+│   ├── ci.yml           Build + lint on every push
+│   └── release.yml      Cross-platform binaries on tag
+├── Dockerfile           Server container
+├── render.yaml          Render deployment config
+├── USAGE.md             Complete command reference (CLI)
 └── README.md
 ```
 
 ---
 
-## Roadmap
+## 🤝 Contributing
 
-```
-v0.1 ✅  Connection + relay fallback
-v0.2 ✅  Encrypt relay (X25519 + ChaCha20-Poly1305)
-v0.3 ✅  Token enforcement (T-No, Q-No, P-No) + listen command
-v0.4 ✅  File transfer — IDM chunked, resumable, safe, with iroh QUIC
-v0.5 🔜  Port forwarding — punch forward <port> <code>
-v0.6 🔜  Remote terminal — punch shell + consent + monitoring
-v0.7 🔜  Local dashboard — session and token visualisation
-v0.8 🔜  Developer library — punch-core on crates.io
-v1.0 🔜  Public launch
-```
+Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
 
----
+**What's needed right now:**
+- Shell UX polish and Windows/macOS/Linux test matrix
+- Symmetric NAT edge case testing and reports
+- Windows testing (especially port forwarding)
+- ARM / Raspberry Pi testing
+- Dashboard UI (Svelte, v0.7)
 
-## Contributing
-
-Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) before opening a PR.
-
-Actively needed:
-- Symmetric NAT edge case testing
-- Windows testing and bug reports
-- v0.5 port forwarding implementation
-- Dashboard UI (Svelte)
+**Philosophy rules — non-negotiable:**
+- No central data storage
+- No account requirement
+- No complexity without a real use case
+- Zero-knowledge server model stays intact
 
 ---
 
-## License
+## 📜 License
 
-MIT — do whatever you want, just don't sell it as a closed source product.
+MIT. Do whatever you want. Don't sell it closed-source.
 
 ---
 
 <div align="center">
 
-Built by [Syed Mannan Saood](https://github.com/MannanSaood) · Bengaluru, India
+<br/>
 
-*Zero knowledge. Zero profit. Zero compromise.*
+```
+zero knowledge · zero profit · zero compromise
+```
+
+<br/>
+
+Built by **[Syed Mannan Saood](https://github.com/MannanSaood)** — Bengaluru, India
+
+<br/>
+
+*If Punch saved you from another Tailscale subscription, consider starring the repo.*
 
 </div>

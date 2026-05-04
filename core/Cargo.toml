@@ -75,3 +75,9 @@ iroh = "0.96"
 
 # Datagram payloads for Iroh UDP forward
 bytes = "1"
+
+# PTY for shell sessions (cross-platform — Windows ConPTY + Unix PTY)
+portable-pty = "0.8"
+ 
+# Terminal UI for Device B monitoring view
+crossterm = "0.27"

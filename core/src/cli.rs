@@ -457,3 +457,63 @@ async fn find_free_port() -> anyhow::Result<u16> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     Ok(listener.local_addr()?.port())
 }
+
+/// Handle `punch shell` — host side (Device B)
+pub async fn shell_host(
+    server: String,
+    token_uses: Option<u32>,
+    permanent: bool,
+) -> anyhow::Result<()> {
+    use crate::shell::{prepare_host, run_host};
+
+    let token = crate::token::Token::generate(token_uses, permanent);
+    crate::token_store::store_token(&token).await?;
+
+    println!("\n{}: {}", token.display_label(), token.code);
+    println!("Type: {}", token.token_type);
+    println!("Share this code with the client.\n");
+
+    if token.token_type == crate::token::TokenType::PNo {
+        println!("⚠️  Run: punch verify {} before first use\n", token.code);
+    }
+
+    let (handshake, endpoint) = prepare_host(&token.display_label()).await?;
+
+    println!("\nWaiting for client...\n");
+
+    let mut client = SignalingClient::connect(&server, &token.code).await?;
+    client.wait_for_peer().await?;
+
+    match crate::token_store::check_and_consume(&token.code).await {
+        Ok(()) => {}
+        Err(e) => {
+            println!("❌ Connection rejected: {}", e);
+            return Ok(());
+        }
+    }
+
+    client.send_shell_handshake(&handshake).await?;
+    run_host(endpoint, &handshake).await?;
+
+    Ok(())
+}
+
+/// Handle `punch shell connect <code>` — client side (Device A)
+pub async fn shell_connect(
+    server: String,
+    code: String,
+) -> anyhow::Result<()> {
+    use crate::shell::run_client;
+
+    println!("Connecting with code: {}\n", code);
+
+    let mut client = SignalingClient::connect(&server, &code).await?;
+    let handshake = client.wait_for_shell_handshake().await?;
+
+    println!("🔐 Fingerprint: {}", handshake.session_fingerprint);
+    println!("   Verify this with the host before proceeding.\n");
+
+    run_client(&handshake).await?;
+
+    Ok(())
+}

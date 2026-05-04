@@ -1,211 +1,191 @@
 # Punch — Roadmap
-
-> Philosophy: Ship something real at every milestone. No milestone ends in "in progress."
+> Ship something real at every milestone. No milestone ends in "in progress."
 
 ---
 
 ## v0.1 ✅ — Core Connection
-**Shipped. Two devices. One code. Direct connection.**
+Two devices. One code. Direct connection.
 
-- WebSocket signalling server (Go)
+- WebSocket signalling server (Go) — stateless, matchmaker only
 - UDP hole punching via STUN
 - Encrypted relay fallback (automatic)
 - T-No ephemeral tokens
-- Connection state messages
-- Startup network advisory
 - `--server` flag for self-hosted instances
 - Single binary + Dockerfile
 
 ---
 
 ## v0.2 ✅ — Encrypted Relay
-**Shipped. Zero knowledge claim is now actually true.**
+Zero knowledge claim is now actually true.
 
-- X25519 Diffie-Hellman key exchange
-- ChaCha20-Poly1305 end-to-end encryption
-- Server sees two public keys, cannot derive shared secret
-- Key exchange happens transparently after matching
-- `🔑 Keys exchanged. End-to-end encrypted.` confirmation
+- X25519 Diffie-Hellman key exchange via signalling server
+- ChaCha20-Poly1305 end-to-end encryption on relay traffic
+- Server forwards encrypted gibberish it cannot read
+- Both peers independently derive same secret — server never has it
 
 ---
 
 ## v0.3 ✅ — Token Enforcement
-**Shipped. T-No, Q-No, P-No all enforced.**
+Access control that lives on your device.
 
-- Token state persisted to `~/.punch/tokens.json`
-- T-No — ephemeral, nothing stored, single use
-- Q-No — usage counter persists across restarts
-- P-No — requires `punch verify` before first use
-- `punch listen <code>` — reconnect without burning a token use
-- `punch tokens` — list all active tokens
-- `punch revoke <code>` — immediate invalidation
-- Enforcement on generator side (Device A owns policy)
+- T-No — ephemeral, nothing stored
+- Q-No — usage counter in `~/.punch/tokens.json`, persists across restarts
+- P-No — stored, blocked until `punch verify`
+- `punch listen` — reconnect without burning a token use
+- `punch tokens` / `punch revoke` / `punch verify`
+- Enforcement on generator side (Device A owns the policy)
 
 ---
 
 ## v0.4 ✅ — File Transfer
-**Shipped. Direct peer to peer, resumable, safe.**
+Direct peer to peer. Resumable. Safe.
 
+- Iroh QUIC transport — hole punch + relay.iroh.network fallback
 - IDM-style parallel chunked transfer (4 streams)
-- Dynamic chunk sizing (1MB / 4MB / 16MB / 64MB based on file size)
-- Direct TCP peer to peer — server never sees file data
-- SHA256 verification per chunk and whole file
-- Resumable — `.punch_partial` + `.punch_state` survive restarts
-- Idempotent chunk requests — ACK-lost scenario handled
-- Connection drop vs data corruption distinguished correctly
-- State saved every 512KB — minimal data lost on drop
-- Risk classification — 🔴 HIGH / 🟡 MEDIUM / 🟢 LOW
-- Consent prompt with 30 second timeout before any data flows
+- Dynamic chunk sizing (1MB / 4MB / 16MB / 64MB by file size)
+- SHA256 per chunk + whole file
+- Resumable via `.punch_partial` + `.punch_state`
+- Idempotent chunks — ACK-lost scenario handled correctly
+- Connection drop vs data corruption distinguished
+- Risk classification — 🔴 / 🟡 / 🟢
+- Consent prompt with 30s timeout
 - Session fingerprint for verbal verification
-- Acceptance always logged to `~/.punch/logs/transfers.json`
-- Resume warnings by token type (T-No, Q-No last use, P-No)
-- `punch send <file>` and `punch receive <code> --dest <path>`
+- Acceptance always logged
 
 ---
 
-## v0.5 — Port Forwarding
-**Goal: Expose a local port through Punch to a remote device.**
+## v0.5 ✅ — Port Forwarding
+Any port. TCP + UDP. No bottleneck.
 
-```bash
-# Device A — expose local port 3000
-punch forward 3000
-
-# Device B — access it
-punch forward connect <code>
-# → localhost:3000 now accessible on Device B
-```
-
-- Direct TCP tunnel between ports
-- No server involvement after handshake
-- Consent prompt on receiving side
-- Works for any TCP service — HTTP, SSH, databases, game servers
-- Clean disconnect when either side exits
-
-**Done when:**
-> Running a local dev server on port 3000, a friend on a different network can access it via `punch forward connect <code>` in under 10 seconds.
+- Iroh QUIC — same stack as file transfer, same connectivity guarantees
+- TCP: each local connection = one Iroh bidirectional stream
+- UDP: unreliable datagrams (preserves UDP semantics exactly)
+- Handles both `127.0.0.1` and `[::1]` — works with Vite, webpack, etc.
+- In-band handshake verification — port whitelist enforced at protocol level
+- Session fingerprint — verbal MITM check
+- Max 50 concurrent streams — DoS protection
+- T-No / Q-No / P-No token support
+- Full audit log at `~/.punch/logs/forward.json`
+- 256KB I/O buffer — tuned for streaming throughput
 
 ---
 
-## v0.6 — Remote Terminal
-**Goal: Secure shell access with explicit consent and monitoring.**
+## v0.6 ✅ — Remote Terminal
+Secure shell access over **Iroh QUIC**. Explicit host consent. Local visibility and audit on the host.
 
 ```bash
-# Device A — allow terminal access
-punch shell
+# Device B — host (machine that runs the shell)
+punch shell host
+punch shell host --uses 10 --permanent   # Q-No / P-No options (same pattern as forward)
 
-# Device B — request terminal
+# Device A — client
 punch shell connect <code>
 ```
 
-- Explicit consent prompt on host side before shell opens
-- Session-scoped — access ends when connection ends
-- P-No tokens for persistent home server access
-- Real-time command visibility on host side
-- eBPF monitoring — detect access to sensitive paths
-- Auto-kill on suspicious activity (configurable)
-- Every command logged locally on host
+**Shipped behaviour:**
+- WebSocket signalling message type `shell` (handshake with `EndpointAddr` + fingerprint)
+- **Iroh QUIC** data plane — same connectivity as file transfer / port forward (direct or relay)
+- **Host:** consent prompts before the PTY starts; live command monitor; **Ctrl+K** kills session
+- **Client:** fingerprint shown for verbal check with host; interactive terminal after approval
+- **portable-pty** + **crossterm** for PTY and local terminal modes; configurable blocklist / suspicious patterns via `shell_config`
+- Host session log: **`~/.punch/logs/shell_sessions.json`**
 
-**Done when:**
-> Full shell session works across different networks. Host can see and kill session at any time.
+**Future polish (post-v0.6):** `punch shell list` (active sessions), richer “persist on disconnect” behaviour, dashboard integration (v0.7).
 
 ---
 
-## v0.7 — Local Dashboard
-**Goal: Visualise everything Punch has done, locally.**
+## v0.7 🔜 — Local Dashboard
+See everything Punch has ever done. On your machine only.
 
 ```bash
-punch dashboard
-# → http://localhost:7777
+punch dashboard  # → http://localhost:7777
 ```
 
-- Session history — connection type, duration, data transferred
+**Shows:**
+- Connection history — type, duration, data transferred
 - Token activity — Q-No remaining uses, P-No last used
-- Transfer history — files sent/received, risk levels, decisions
-- Terminal session log — commands run per session (v0.6 data)
-- Zero external requests — reads local files only
-- Auto-refreshes every 10 seconds
-- Built in Svelte, compiled static bundle
+- File transfer log — sent/received, risk levels, decisions
+- Port forward log — sessions, stream counts, ports
+- Terminal session log (v0.6 data)
 
-**Done when:**
-> `punch dashboard` shows complete history with no internet connection.
+Zero external requests. Reads local files only. Svelte, compiled static bundle.
+
+**Done when:** `punch dashboard` loads completely offline and shows full history.
 
 ---
 
-## v0.8 — Developer Library
-**Goal: Other developers can embed Punch in their apps.**
+## v0.8 🔜 — Developer Library
+Embed Punch in your own apps.
 
 ```rust
 // Cargo.toml
 punch-core = "0.8"
 
-// Usage
+// Code
 let conn = punch::connect("4829").await?;
 conn.send(data).await?;
-let received = conn.recv().await?;
+let msg = conn.recv().await?;
 ```
 
 - Extract core into `punch-core` crate
-- Clean public API: `connect()`, `send()`, `recv()`, `close()`
-- Async/Tokio throughout
+- Clean async API: `connect()`, `send()`, `recv()`, `forward()`, `close()`
 - Published to crates.io
 - Full docs on docs.rs
 - Integration test suite
 
-**Done when:**
-> Someone outside the project builds a working p2p app using `punch-core` from crates.io with under 20 lines of code.
+**Done when:** Someone builds a working p2p app with `punch-core` in under 20 lines.
 
 ---
 
-## v1.0 — Public Launch
-**Goal: Production ready. Real world tested. Documented.**
+## v1.0 🔜 — Public Launch
+Production ready. Real world tested. Properly distributed.
 
-### Hardening
-- [ ] Security audit of relay encryption
-- [ ] Fuzz testing on STUN and protocol parsing
-- [ ] Load test signalling server (1000 concurrent sessions)
-- [ ] Symmetric NAT comprehensive testing
-- [ ] Windows full test suite
-- [ ] ARM builds (Raspberry Pi)
+**Hardening:**
+- Security audit of relay encryption
+- Fuzz testing on STUN and protocol parsing
+- Load test: 1000 concurrent sessions
+- Symmetric NAT comprehensive testing
+- Windows full test suite
+- ARM builds (Raspberry Pi)
 
-### Distribution
-- [ ] `cargo install punch-cli`
-- [ ] Homebrew formula
-- [ ] Prebuilt binaries via GitHub Releases (all platforms)
-- [ ] Docker Hub image for server
+**Distribution:**
+- `cargo install punch-cli`
+- Homebrew formula
+- Prebuilt binaries on GitHub Releases (all platforms)
+- Docker Hub for server
 
-### Documentation
-- [ ] Full docs site (GitHub Pages)
-- [ ] Self-hosting guide
-- [ ] Protocol specification (RFC-style)
-- [ ] Security model writeup
+**Documentation:**
+- Full docs site (GitHub Pages)
+- Protocol specification (RFC-style)
+- Security model writeup
+- Self-hosting guide
 
-**Done when:**
-> Someone who has never heard of Punch can install it, connect two devices, and understand what happened — in under 5 minutes.
+**Done when:** Someone who has never heard of Punch installs it, connects two devices, and understands what happened — in under 5 minutes.
 
 ---
 
 ## Post v1.0 — Future Ideas
-
 Not committed. Only after v1.0 ships.
 
-- **QUIC transport** — replace TCP in file transfer for better performance on lossy networks
+- **QUIC upgrade for file transfer** — already on Iroh, potential direct Quinn for more control
 - **Multi-peer sessions** — connect more than two devices
+- **`punch sync`** — folder sync between devices
 - **Mobile CLI** — Termux support for Android
-- **Prometheus metrics** — for self-hosters who want server observability
-- **punch sync** — folder sync between two devices
+- **Prometheus metrics** — for self-hosters
+- **`punch broadcast`** — one sender, multiple receivers
 
 ---
 
-## Milestone Summary
+## Summary
 
-| Version | Focus | Key Deliverable | Status |
-|---------|-------|-----------------|--------|
-| v0.1 | Core | Direct p2p connection | ✅ Shipped |
-| v0.2 | Security | Relay encrypted, zero knowledge true | ✅ Shipped |
-| v0.3 | Access Control | Token enforcement, listen command | ✅ Shipped |
-| v0.4 | File Transfer | IDM chunked, resumable, consent | ✅ Shipped |
-| v0.5 | Port Forwarding | punch forward | 🔜 Next |
-| v0.6 | Terminal | punch shell + monitoring | 🔜 |
-| v0.7 | Dashboard | Local visualisation | 🔜 |
-| v0.8 | Ecosystem | Developer library on crates.io | 🔜 |
-| v1.0 | Launch | Production ready, publicly announced | 🔜 |
+| Version | Status | Key Deliverable |
+|---------|--------|-----------------|
+| v0.1 | ✅ Shipped | P2P connection works |
+| v0.2 | ✅ Shipped | Relay encrypted, zero knowledge true |
+| v0.3 | ✅ Shipped | Token enforcement, listen command |
+| v0.4 | ✅ Shipped | File transfer, Iroh QUIC, resumable |
+| v0.5 | ✅ Shipped | Port forwarding, TCP + UDP |
+| v0.6 | ✅ Shipped | Remote terminal + consent |
+| v0.7 | 🔜 | Local dashboard |
+| v0.8 | 🔜 | Developer library on crates.io |
+| v1.0 | 🔜 | Public launch |

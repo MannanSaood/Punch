@@ -1,115 +1,59 @@
-# Punch — Usage Guide
-
-> Complete reference for all commands, flags, and workflows.
-
----
-
-## Installation
-
-### Download prebuilt binary (recommended)
-Go to [GitHub Releases](https://github.com/MannanSaood/Punch/releases) and download the binary for your platform:
-
-| Platform | File |
-|----------|------|
-| Windows (x64) | `punch-windows-x86_64.exe` |
-| Linux (x64) | `punch-linux-x86_64` |
-| macOS (Intel) | `punch-macos-x86_64` |
-| macOS (Apple Silicon) | `punch-macos-arm64` |
-
-### Build from source
-```bash
-git clone https://github.com/MannanSaood/Punch.git
-cd Punch/core
-cargo build --release
-# Binary at: target/release/punch
-```
+# Punch — Complete Usage Guide
+**v0.6.0** · [Back to README](README.md)
 
 ---
 
 ## Global Flags
 
-These flags work with every command:
+These work with every command:
 
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--server <url>` | Signalling server URL | `wss://punch-8o2u.onrender.com` |
-| `--log` | Enable local session logging to `~/.punch/logs/sessions.json` | off |
-| `-v, --verbose` | Show debug output | off |
+| `--log` | Log session to `~/.punch/logs/sessions.json` | off |
+| `-v, --verbose` | Debug output | off |
 
 ---
 
-## Commands
-
-### `punch generate` — Create a connection code
-
-Generates a code and waits for a peer to connect.
+## `punch generate` — Create a connection code
 
 ```bash
-punch generate
-punch generate --uses 5
-punch generate --permanent
+punch generate                   # T-No: single use
+punch generate --uses 10         # Q-No: 10 uses
+punch generate --permanent       # P-No: permanent, needs verify
 punch generate --server ws://localhost:8080
-punch generate --log
 ```
 
-**Flags:**
-
-| Flag | Description |
-|------|-------------|
-| `--uses <N>` | Q-No mode — expires after N connections |
-| `--permanent` | P-No mode — persistent, requires verification |
-
-**Token types:**
-
-| Token | Command | Behaviour |
-|-------|---------|-----------|
-| **T-No** | `punch generate` | Single session. Expires immediately after. Nothing stored. |
-| **Q-No** | `punch generate --uses 5` | Expires after N uses. Stored in `~/.punch/tokens.json`. |
-| **P-No** | `punch generate --permanent` | Permanent. Requires `punch verify <code>` before first use. |
-
-**Example output:**
-```
-T-No: 4829
-Type: T-No
-Waiting for peer...
-```
+| Token | What it means |
+|-------|--------------|
+| **T-No** | Expires immediately after one session. Nothing stored. |
+| **Q-No** | Decrements per connection. Stored in `~/.punch/tokens.json`. |
+| **P-No** | Permanent. Blocked until `punch verify <code>`. |
 
 ---
 
-### `punch listen <code>` — Reconnect on existing token
+## `punch listen <code>` — Reconnect without burning a use
 
-Waits for a peer on an **existing** stored token without generating a new one.
-Use this to reconnect after a session ends without consuming an extra Q-No use.
+Reuses an existing Q-No or P-No token. The token use is only consumed once a peer actually connects.
 
 ```bash
-punch listen 4829
-punch listen 4829 --server ws://localhost:8080
-punch listen 4829 --log
+punch listen 7731
+punch listen 7731 --server ws://localhost:8080
 ```
 
-**When to use listen vs generate:**
-
-| Situation | Command |
-|-----------|---------|
-| First connection ever | `punch generate --uses 10` |
-| Reconnecting after session ends | `punch listen <code>` |
-| New one-time connection | `punch generate` |
-
-**Example — home server workflow:**
+**Home server pattern:**
 ```bash
 # First time only
-punch generate --uses 20
-# → Q-No: 7731
+punch generate --uses 100    # → Q-No: 7731
+punch verify 7731
 
-# Every reconnect after that
+# Every subsequent reconnect
 punch listen 7731
 ```
 
 ---
 
-### `punch connect <code>` — Connect to a peer
-
-Connects to a device that is waiting with `punch generate` or `punch listen`.
+## `punch connect <code>` — Connect to a peer
 
 ```bash
 punch connect 4829
@@ -117,302 +61,324 @@ punch connect 4829 --server wss://punch-8o2u.onrender.com
 punch connect 4829 --log
 ```
 
-**Example output:**
+**Connection states:**
 ```
-Connecting with code: 4829
-
-Punching...
-✅ Punched! Direct connection established.
-
-Session active. Press Ctrl+C to disconnect.
-```
-
-or if hole punch fails:
-```
-❌ Couldn't punch. Relaying encrypted traffic.
-🔒 Connected via encrypted relay.
+Punching...                          → hole punch attempt
+✅ Punched! Direct connection.        → p2p, server gone
+❌ Couldn't punch. Relaying...        → relay fallback
+🔒 Connected via encrypted relay.     → E2E encrypted via relay.iroh.network
 🔑 Keys exchanged. End-to-end encrypted.
-
-Session active via encrypted relay. Press Ctrl+C to disconnect.
 ```
 
 ---
 
-### `punch send <file>` — Send a file
-
-Sends a file directly to a peer. Uses IDM-style parallel chunked transfer —
-file goes directly peer to peer, never through the server.
+## `punch send <file>` — Send a file
 
 ```bash
 punch send video.mp4
-punch send /path/to/file.zip
-punch send document.pdf --server ws://localhost:8080
-punch send setup.exe --log
+punch send /path/to/archive.zip
+punch send setup.exe                 # receiver sees 🔴 HIGH RISK warning
 ```
 
 **What happens:**
-1. File is split into chunks (size depends on file size — see below)
-2. SHA256 checksum computed for whole file and each chunk
-3. A T-No code is generated and displayed
-4. You share the code with the receiver
-5. Receiver connects and sees a consent prompt before any data flows
-6. File streams directly peer to peer over 4 parallel TCP connections
-7. Receiver verifies checksum — transfer complete
+1. File checksummed (SHA256)
+2. Split into dynamic chunks (1MB → 64MB based on file size)
+3. T-No code generated and displayed
+4. Receiver sees full consent prompt before anything transfers
+5. File streams peer-to-peer over 4 parallel Iroh QUIC streams
+6. SHA256 verified per chunk and whole file
 
-**Dynamic chunk sizing:**
+**Chunk sizing:**
 
-| File size | Chunk size | Approx chunks |
-|-----------|------------|---------------|
-| < 100 MB | 1 MB | ~100 |
-| 100 MB – 1 GB | 4 MB | ~250 |
-| 1 GB – 10 GB | 16 MB | ~625 |
-| > 10 GB | 64 MB | ~160 |
+| File size | Chunk size |
+|-----------|------------|
+| < 100 MB | 1 MB |
+| 100 MB – 1 GB | 4 MB |
+| 1 GB – 10 GB | 16 MB |
+| > 10 GB | 64 MB |
 
-**Resume behaviour by token type:**
+**Resume by token type:**
 
-| Token | Resume? | Notes |
-|-------|---------|-------|
-| T-No | ❌ No | Single use — if it drops, generate a new code |
-| Q-No (1 use left) | ❌ No | Last use — warned before sending |
-| Q-No (2+ uses) | ✅ Yes | Resume costs 1 additional use |
-| P-No | ✅ Yes | Unlimited reconnects, always resumable |
-
-**Example output (sender):**
-```
-📁 File: video.mp4 (1,240 MB)
-🔐 Computing checksum... done
-📦 310 chunks × 4MB (dynamic sizing)
-📡 Listening on port 49201
-
-──────────────────────────────────────────
-  📤 Sending file
-──────────────────────────────────────────
-  File:        video.mp4
-  Size:        1240.0 MB
-  Risk level:  🟢 LOW RISK
-  Fingerprint: a3f9-12bc-77de
-──────────────────────────────────────────
-  Share fingerprint with receiver for verification.
-
-T-No: 6241
-Share this code with the receiver.
-
-Waiting for receiver...
-```
+| Token | If transfer drops |
+|-------|-----------------|
+| T-No | ❌ Cannot resume — generate new code |
+| Q-No (1 use left) | ❌ Cannot resume — warned before sending |
+| Q-No (2+ uses) | ✅ Resume costs 1 additional use |
+| P-No | ✅ Always resumable |
 
 ---
 
-### `punch receive <code>` — Receive a file
+## `punch receive <code>` — Receive a file
 
-Receives a file from a peer sending with `punch send`.
-
-#### Save to current directory (where command is running)
+### Save to current directory
 ```bash
 punch receive 6241
+# Check where you are first: pwd (Linux/macOS) or cd (Windows)
 ```
 
-File saves to whichever directory your terminal is currently in.
-Check with `pwd` (Linux/macOS) or `cd` (Windows) before running.
-
-#### Save to a specific location
+### Save to specific location
 ```bash
 # Windows
 punch receive 6241 --dest "C:\Users\DELL\Downloads"
-punch receive 6241 --dest "D:\Projects\files"
-punch receive 6241 -d "C:\Users\DELL\Desktop"
+punch receive 6241 -d "D:\Projects"
 
 # Linux / macOS
 punch receive 6241 --dest ~/Downloads
-punch receive 6241 --dest /home/user/files
 punch receive 6241 -d /tmp
 ```
 
-**Flags:**
-
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--dest <path>` | `-d` | Directory to save the file into | `.` (current directory) |
-
-**Consent prompt — always shown before accepting:**
+**Consent prompt (always shown):**
 ```
 ──────────────────────────────────────────────────
   📦 Incoming file transfer request
 ──────────────────────────────────────────────────
-  File:        video.mp4
-  Size:        1240.0 MB
-  Type:        .mp4
-  Risk:        🟢 LOW RISK
-  Info:        Document or media — generally safe
+  File:        setup.exe
+  Size:        42.0 MB
+  Type:        .exe
+  Risk:        🔴 HIGH RISK
+  Info:        Executable — can run code on your system
   Checksum:    a3f912bc77de1234...
   Fingerprint: a3f9-12bc-77de
 ──────────────────────────────────────────────────
-
-  Tip: Ask the sender to confirm fingerprint: a3f9-12bc-77de
-
   Accept? (yes/no):
 ```
 
-You have **30 seconds** to accept. No response = auto rejected.
+30 second timeout. No response = auto-rejected.
 
 **Risk levels:**
 
-| Level | Extensions | Warning |
-|-------|-----------|---------|
-| 🔴 HIGH RISK | `.exe .bat .sh .ps1 .dll .dmg .pkg` and more | Strong warning shown |
-| 🟡 MEDIUM RISK | `.zip .tar .gz .rar .7z .apk` and more | Note to scan with antivirus |
-| 🟢 LOW RISK | `.pdf .jpg .mp4 .txt .docx` and more | No extra warning |
+| Level | Extensions |
+|-------|-----------|
+| 🔴 HIGH | `.exe .bat .sh .ps1 .dll .app .dmg .pkg .vbs` |
+| 🟡 MEDIUM | `.zip .tar .gz .rar .7z .apk .jar` |
+| 🟢 LOW | `.pdf .jpg .mp4 .txt .docx` and most others |
 
-**Acceptance is always logged** to `~/.punch/logs/transfers.json` regardless of `--log` flag.
+**Acceptance always logged** to `~/.punch/logs/transfers.json`.
 
-**Resume:** if connection drops mid-transfer, run the exact same command again.
-Punch detects the `.punch_partial` file and resumes from where it stopped.
+**Resume:** same command, Punch detects partial file automatically.
 
 ---
 
-### `punch verify <code>` — Verify a P-No token
+## `punch forward expose <port>` — Expose a local port
 
-Must be run before a P-No permanent token can be used for the first time.
+```bash
+punch forward expose 8096                  # TCP, T-No token
+punch forward expose 8096 --udp           # TCP + UDP
+punch forward expose 8096 --uses 10       # Q-No: 10 sessions
+punch forward expose 8096 --permanent     # P-No: always accessible
+punch forward expose 3000 --server ws://localhost:8080
+```
+
+**What you see:**
+```
+T-No: 9182
+Type: T-No
+Protocol: TCP
+Port: 8096
+
+🔌 Starting Iroh endpoint... done
+🌐 Node ID: ki6htfv...
+🔐 Session fingerprint: 3a7f-12bc-88de
+   Ask connector to verify this fingerprint.
+
+Waiting for connector...
+
+⚡ Connector connected — forwarding port 8096 (TCP)
+   Session: 3a7f-12bc-88de
+   Press Ctrl+C to stop.
+
+  → TCP stream opened (1 active)
+  → TCP stream opened (2 active)
+  ← TCP stream closed (1 active)
+```
+
+---
+
+## `punch forward connect <code>` — Connect to a forwarded port
+
+```bash
+punch forward connect 9182                 # auto-assign local port
+punch forward connect 9182 --local 8096   # specific local port
+punch forward connect 9182 --udp          # enable UDP
+```
+
+**Consent prompt:**
+```
+─────────────────────────────────────────
+  🔀 Incoming port forward request
+─────────────────────────────────────────
+  Remote port:  8096 (TCP)
+  Token type:   T-No
+  Fingerprint:  3a7f-12bc-88de
+─────────────────────────────────────────
+  Verify fingerprint with exposer.
+  Connect? (yes/no):
+```
+
+**After connecting:**
+```
+✅ Connected (Iroh QUIC — direct or relay, automatic)
+🔀 Forwarding:
+   TCP: localhost:54231 → remote:8096
+   Fingerprint: 3a7f-12bc-88de
+   Press Ctrl+C to disconnect.
+```
+
+Open `http://localhost:54231` in your browser (or whatever port was assigned).
+
+---
+
+## `punch shell` — Remote terminal over Iroh QUIC
+
+Traffic is **peer-to-peer** (same Iroh stack as file transfer and port forward). The signalling server only relays the shell **handshake** (like forward). The host machine runs a real PTY (`cmd.exe` on Windows, `$SHELL` elsewhere); the client gets an interactive terminal after the host approves.
+
+### Host (Device B — the machine whose shell is shared)
+
+```bash
+punch shell host
+punch shell host --uses 10              # Q-No token
+punch shell host --permanent            # P-No (run punch verify first)
+punch shell host --server ws://localhost:8080
+```
+
+1. Prints **T-No / Q-No / P-No** code — share with the client.  
+2. Waits for an Iroh connection, then prompts: **Allow shell access?** / **Keep shell alive if client disconnects?**  
+3. After approval, shows a live **command monitor**; **Ctrl+K** kills the session on the host.
+
+### Client (Device A)
+
+```bash
+punch shell connect 4829
+punch shell connect 4829 --server ws://localhost:8080
+```
+
+1. Loads host fingerprint from signalling; **verify** it matches the host console.  
+2. Waits for host approval, then attaches to the remote shell. **Ctrl+C** exits the client.
+
+### Notes
+
+- **Order:** start **host** (or at least be past signalling so the client can get the handshake), then **connect** from the client.  
+- **`-v` / `--verbose`:** extra tracing (e.g. stream setup) for debugging.  
+- Host-side **blocklist / suspicious patterns** and session logs are configured under `~/.punch/` (see `shell_config`); session history is appended to **`~/.punch/logs/shell_sessions.json`** when the session ends.
+
+---
+
+## `punch verify <code>` — Activate a P-No token
 
 ```bash
 punch verify 7731
-```
-
-**Output:**
-```
-Verifying permanent token: 7731
-This will allow permanent access to your device.
-Confirm? (yes/no): yes
-✅ Token 7731 verified. Permanent access enabled.
+# Confirm? (yes/no): yes
+# ✅ Token 7731 verified.
 ```
 
 ---
 
-### `punch revoke <code>` — Revoke a token
-
-Immediately invalidates a token. Any future connection attempt with this code is rejected.
+## `punch revoke <code>` — Kill a token
 
 ```bash
 punch revoke 7731
-```
-
-**Output:**
-```
-🗑️  Token 7731 revoked.
+# 🗑️  Token 7731 revoked.
 ```
 
 ---
 
-### `punch tokens` — List active tokens
-
-Shows all stored Q-No and P-No tokens with their current status.
+## `punch tokens` — List active tokens
 
 ```bash
 punch tokens
-```
 
-**Output:**
-```
-Active tokens:
-
-Code     Type         Status                         Created
-────────────────────────────────────────────────────────────────────────
-7731     Q-No         Quantised (3 uses remaining)   2026-04-29 17:00
-9812     P-No         Permanent (verified)           2026-04-29 16:30
-4401     P-No         Permanent (not verified)       2026-04-29 16:00
+# Output:
+# Code     Type         Status                         Created
+# ────────────────────────────────────────────────────────────
+# 7731     Q-No         Quantised (7 uses remaining)   2026-05-01 14:22
+# 9812     P-No         Permanent (verified)           2026-05-01 10:30
 ```
 
 ---
 
-### `punch dashboard` — Local session dashboard
-
-Opens a local web dashboard showing session history and token activity.
-Zero external requests — reads only from `~/.punch/logs/`.
+## `punch dashboard` — Local web UI
 
 ```bash
 punch dashboard
-# Opens http://localhost:7777 in your browser
+# Opens http://localhost:7777
 ```
+
+Shows session history, token status, file transfer log, port forward log (shell sessions: see `~/.punch/logs/shell_sessions.json` until dashboard integration). Reads local files only — zero external requests.
 
 ---
 
 ## Common Workflows
 
-### Share a file with a friend (one time)
+### Share a dev server with a teammate
 ```bash
-# You
-punch send photo.jpg
+# You (Device A)
+punch forward expose 3000
+# Share code → teammate
 
-# Friend (replace 1234 with your code)
-punch receive 1234 --dest ~/Downloads
+# Teammate (Device B)
+punch forward connect <code>
+# → Access http://localhost:<auto-port>
 ```
 
-### Share a large file reliably (resumable)
+### Send a large file reliably
 ```bash
-# You — generate a Q-No token with enough uses
+# Generate a reusable token
 punch generate --uses 5
+# Q-No: 4829
 
-# Then send
-punch send bigfile.zip
-
-# Friend
-punch receive 1234 --dest D:\Downloads
+punch send bigfile.iso
+# If it drops: run exact same command, it resumes
 ```
 
-### Access your home server repeatedly
+### Access Jellyfin from anywhere
 ```bash
-# Home server — first time only
-punch generate --uses 50
-# → Q-No: 7731
-
+# Home server
+punch generate --permanent
+# P-No: 7731
 punch verify 7731
 
-# Home server — every subsequent time
+# Every day
 punch listen 7731
 
-# Your laptop — anywhere in the world
-punch connect 7731
+# From anywhere
+punch forward connect 7731 --local 8096
+# Open http://localhost:8096
 ```
 
-### Self-hosted server
+### Remote shell (support / server access)
 ```bash
-# Run your own signalling server
+# Machine you’re helping (host)
+punch shell host --server ws://localhost:8080
+# Share code + fingerprint out of band
+
+# Your laptop (client)
+punch shell connect <code> --server ws://localhost:8080
+```
+
+### Self-hosted everything
+```bash
+# Run your own server
 cd server && go run cmd/main.go
 
-# Point CLI at it
+# All commands work with --server
 punch generate --server ws://localhost:8080
-punch connect 1234 --server ws://localhost:8080
+punch connect <code> --server ws://localhost:8080
 punch send file.zip --server ws://localhost:8080
-punch receive 1234 --dest ~/Downloads --server ws://localhost:8080
+punch forward expose 8096 --server ws://localhost:8080
+punch shell host --server ws://localhost:8080
+punch shell connect <code> --server ws://localhost:8080
 ```
 
 ---
 
-## Local Data
+## Local Files
 
-Punch stores everything locally. Nothing leaves your device except connection handshake metadata.
-
-| Path | Contents |
-|------|----------|
-| `~/.punch/tokens.json` | Q-No and P-No token state |
-| `~/.punch/logs/sessions.json` | Session history (only with `--log`) |
-| `~/.punch/logs/transfers.json` | Transfer acceptance log (always written) |
-| `<dest>/<filename>.punch_partial` | Partial file during transfer |
-| `<dest>/<filename>.punch_state` | Chunk state for resumption |
-
----
-
-## Network Notes
-
-```
-Punch works best on WiFi.
-Mobile (4G/5G) and corporate networks may fall back to relay.
-```
-
-- **Direct connection** — hole punching succeeds, file goes peer to peer
-- **Relay fallback** — encrypted end-to-end, server sees nothing
-- **File transfer** — always direct TCP peer to peer, never through server
-- **STUN failure** — automatically falls back to relay, no action needed
-
----
-
-*Punch v0.4.0 — [github.com/MannanSaood/Punch](https://github.com/MannanSaood/Punch)*
+| Path | Contents | Always? |
+|------|----------|---------|
+| `~/.punch/tokens.json` | Q-No + P-No state | On create |
+| `~/.punch/logs/sessions.json` | Connections | Only `--log` |
+| `~/.punch/logs/transfers.json` | Accept/reject decisions | **Always** |
+| `~/.punch/logs/forward.json` | Port forward sessions | On forward |
+| `~/.punch/logs/shell_sessions.json` | Shell session log (host) | When shell session ends |
+| `<dest>/<file>.punch_partial` | In-progress file | During transfer |
+| `<dest>/<file>.punch_state` | Chunk state for resume | During transfer |
