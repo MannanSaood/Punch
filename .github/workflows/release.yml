@@ -1,9 +1,17 @@
 name: Release
 
+# Releases are NOT created on push to main — only when a semver-style tag is pushed,
+# or when you run this workflow manually (Actions → Release → Run workflow).
 on:
   push:
     tags:
-      - 'v*.*.*'   # triggers on v0.1.0, v0.2.0 etc
+      - 'v*.*.*'   # e.g. v0.1.0, v1.2.3 (needs three numeric parts)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing Git tag to publish (same as git tag), e.g. v0.1.0'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -37,6 +45,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -73,6 +83,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -82,11 +94,17 @@ jobs:
 
       - name: Get version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
           name: Punch ${{ steps.version.outputs.VERSION }}
           body: |
             ## 👊 Punch ${{ steps.version.outputs.VERSION }}
