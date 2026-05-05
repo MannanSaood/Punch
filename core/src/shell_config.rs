@@ -122,15 +122,13 @@ impl ShellConfig {
         let cmd_lower = cmd.to_lowercase();
         for pattern in &self.blocked_commands {
             if cmd_lower.contains(&pattern.to_lowercase()) {
-                return Some(pattern);
+                return Some(pattern.as_str());
             }
         }
-        for path in &self.blocked_paths {
-            if cmd_lower.contains(&path.to_lowercase()) {
-                return Some(path);
-            }
-        }
-        None
+        self.blocked_paths
+            .iter()
+            .find(|path| cmd_lower.contains(&path.to_lowercase()))
+            .map(|p| p.as_str())
     }
 
     /// Check if a command matches any suspicious pattern.

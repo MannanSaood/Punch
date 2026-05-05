@@ -4,6 +4,8 @@
 //! Philosophy: inform, never block. User always decides.
 //! Acceptance is always logged locally regardless of --log flag.
 
+#![allow(dead_code)]
+
 use std::path::Path;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

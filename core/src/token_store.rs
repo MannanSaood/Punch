@@ -15,6 +15,7 @@ pub struct StoredToken {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
+#[allow(clippy::enum_variant_names)]
 pub enum StoredTokenType {
     TNo,
     QNo { remaining: u32 },
@@ -105,10 +106,7 @@ pub async fn check_and_consume(code: &str) -> anyhow::Result<()> {
     let pos = tokens.iter().position(|t| t.code == code);
 
     match pos {
-        None => {
-            // No stored token = T-No (ephemeral, always valid once)
-            return Ok(());
-        }
+        None => Ok(()),
         Some(i) => {
             let token = &tokens[i];
 
@@ -150,8 +148,7 @@ pub async fn check_and_consume(code: &str) -> anyhow::Result<()> {
                 }
             }
 
-            save_tokens(&tokens).await?;
-            Ok(())
+            save_tokens(&tokens).await
         }
     }
 }

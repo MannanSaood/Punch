@@ -180,7 +180,7 @@ impl SignalingClient {
     ) -> anyhow::Result<()> {
         println!("Session active via encrypted relay. Press Ctrl+C to disconnect.\n");
 
-        let mut bytes_sent: u64 = 0;
+        let bytes_sent: u64 = 0;
         let mut bytes_received: u64 = 0;
 
         loop {
@@ -281,6 +281,7 @@ impl SignalingClient {
     }
 
     /// Send Quinn address to connector so they know where to connect.
+    #[allow(dead_code)]
     pub async fn send_quinn_addr(&mut self, addr: &str) -> anyhow::Result<()> {
         let payload = serde_json::json!({ "quinn_addr": addr });
         self.send(SignalMessage {
@@ -291,6 +292,7 @@ impl SignalingClient {
     }
 
     /// Wait to receive Quinn address from exposer.
+    #[allow(dead_code)]
     pub async fn wait_for_quinn_addr(&mut self) -> anyhow::Result<String> {
         loop {
             match self.recv().await? {

@@ -156,7 +156,7 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
     std::io::stdout().flush()?;
     let mut persist_input = String::new();
     std::io::stdin().read_line(&mut persist_input)?;
-    let persist = match persist_input.trim().to_lowercase().as_str() {
+    let _persist = match persist_input.trim().to_lowercase().as_str() {
         "yes" | "y" => true,
         "no"  | "n" => false,
         _            => config.persist_on_disconnect,
@@ -175,7 +175,7 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
 
     // Accept data stream from client (client opens this after receiving approval)
     tracing::debug!("shell host: waiting for client data stream (accept_bi)");
-    let (mut data_send, mut data_recv) = conn
+    let (data_send, mut data_recv) = conn
         .accept_bi()
         .await
         .context("Client did not open data stream")?;
@@ -209,7 +209,7 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
     let commands_log: Arc<Mutex<Vec<CommandEntry>>> = Arc::new(Mutex::new(vec![]));
     let commands_log_clone = Arc::clone(&commands_log);
     let config_clone = config.clone();
-    let kill_tx_host = kill_tx.clone();
+    let _kill_tx_host = kill_tx.clone();
 
     println!("\n┌─────────────────────────────────────────────────────┐");
     println!("│  👊 punch shell — session active                    │");
@@ -334,7 +334,7 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
     let config_monitor = config_clone.clone();
     let commands_log_monitor = Arc::clone(&commands_log_clone);
     let ctrl_send_monitor = Arc::clone(&ctrl_send);
-    let kill_tx_monitor = kill_tx.clone();
+    let _kill_tx_monitor = kill_tx.clone();
 
     tokio::spawn(async move {
         while let Some(cmd) = cmd_rx.recv().await {
@@ -556,11 +556,8 @@ pub async fn run_client(handshake: &ShellHandshake) -> anyhow::Result<()> {
 
     // Listen for control messages (blocks, kills, alerts from host)
     let ctrl_handle = tokio::spawn(async move {
-        loop {
-            let msg_len = match ctrl_recv.read_u32().await {
-                Ok(n) => n as usize,
-                Err(_) => break,
-            };
+        while let Ok(n) = ctrl_recv.read_u32().await {
+            let msg_len = n as usize;
             let mut msg_buf = vec![0u8; msg_len];
             if ctrl_recv.read_exact(&mut msg_buf).await.is_err() { break; }
 

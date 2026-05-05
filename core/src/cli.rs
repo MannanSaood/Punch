@@ -147,7 +147,7 @@ pub async fn tokens() -> anyhow::Result<()> {
     }
 
     println!("\nActive tokens:\n");
-    println!("{:<8} {:<12} {:<30} {}", "Code", "Type", "Status", "Created");
+    println!("{:<8} {:<12} {:<30} Created", "Code", "Type", "Status");
     println!("{}", "─".repeat(72));
 
     for t in tokens {
@@ -171,7 +171,7 @@ pub async fn tokens() -> anyhow::Result<()> {
 /// Handle `punch dashboard`
 pub async fn dashboard() -> anyhow::Result<()> {
     // Open browser automatically
-    let _ = open_browser("http://localhost:7777");
+    open_browser("http://localhost:7777");
     crate::dashboard_server::serve().await
 }
 
@@ -188,7 +188,7 @@ fn open_browser(url: &str) {
 pub async fn send(
     server: String,
     file_path: String,
-    log_enabled: bool,
+    _log_enabled: bool,
 ) -> anyhow::Result<()> {
     let path = std::path::PathBuf::from(&file_path);
     if !path.exists() {
@@ -277,13 +277,6 @@ async fn warn_resume_availability(meta: &crate::transfer::TransferMeta) {
 
     let tokens = list_tokens().await;
 
-    // Find if current transfer was initiated from a stored token
-    // For T-No (not stored) — always warn no resume
-    let stored = tokens.iter().find(|t| {
-        // Heuristic: most recently created token is likely this one
-        true // we check all, show most relevant warning
-    });
-
     // T-No or no stored token
     if tokens.is_empty() {
         println!("⚠️  T-No token — no resume possible if transfer drops.");
@@ -361,7 +354,7 @@ pub async fn forward_expose(
 
     // Prepare Iroh endpoint — handles STUN, hole punch, relay automatically
     let (handshake, iroh_endpoint) = prepare_exposer(
-        port, protocol, &token.display_label()
+        port, protocol, token.display_label()
     ).await?;
 
     println!("\nWaiting for connector...\n");
@@ -477,7 +470,7 @@ pub async fn shell_host(
         println!("⚠️  Run: punch verify {} before first use\n", token.code);
     }
 
-    let (handshake, endpoint) = prepare_host(&token.display_label()).await?;
+    let (handshake, endpoint) = prepare_host(token.display_label()).await?;
 
     println!("\nWaiting for client...\n");
 

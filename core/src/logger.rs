@@ -23,6 +23,7 @@ pub struct SessionLog {
 }
 
 impl SessionLog {
+    #[allow(dead_code)]
     pub fn duration_seconds(&self) -> i64 {
         (self.ended_at - self.started_at).num_seconds()
     }

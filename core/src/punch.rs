@@ -118,10 +118,8 @@ impl PunchEngine {
 
                 let mut buf = [0u8; 16];
                 match timeout(Duration::from_millis(100), socket.recv_from(&mut buf)).await {
-                    Ok(Ok((_, addr))) if addr == peer_addr => {
-                        if &buf[..5] == b"PUNCH" {
-                            return Ok(true);
-                        }
+                    Ok(Ok((_, addr))) if addr == peer_addr && &buf[..5] == b"PUNCH" => {
+                        return Ok(true);
                     }
                     _ => {}
                 }
@@ -139,7 +137,7 @@ impl PunchEngine {
     async fn run_session(
         &self,
         socket: UdpSocket,
-        peer_addr: SocketAddr,
+        _peer_addr: SocketAddr,
         log_enabled: bool,
         session_start: chrono::DateTime<chrono::Utc>,
         code: &str,

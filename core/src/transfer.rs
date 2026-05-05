@@ -96,7 +96,7 @@ pub async fn prepare_send(path: &Path) -> anyhow::Result<(TransferMeta, Endpoint
     println!("done");
 
     let chunk_size  = chunk_size_for(total_size);
-    let chunk_count = (total_size + chunk_size - 1) / chunk_size;
+    let chunk_count = total_size.div_ceil(chunk_size);
     println!("📦 {} chunks × {} (dynamic sizing)", chunk_count, chunk_size_label(total_size));
 
     print!("🔌 Starting Iroh endpoint... ");
@@ -208,12 +208,7 @@ async fn serve_chunk_stream(
     let chunk_size = chunk_size_for(file_size);
     let mut file   = tokio::fs::File::open(path.as_path()).await?;
 
-    loop {
-        // read_u64 returns Result<u64> — correct for QUIC RecvStream via AsyncRead
-        let chunk_index = match recv.read_u64().await {
-            Ok(idx) => idx,
-            Err(_)  => break,
-        };
+    while let Ok(chunk_index) = recv.read_u64().await {
         let resume_offset = recv.read_u64().await?;
 
         let chunk_start = chunk_index * chunk_size;
@@ -314,7 +309,7 @@ pub async fn run_receiver(
 
     {
         let f = tokio::fs::OpenOptions::new()
-            .write(true).create(true).open(&partial).await?;
+            .write(true).create(true).truncate(false).open(&partial).await?;
         f.set_len(meta.total_size).await?;
     }
 
@@ -332,7 +327,7 @@ pub async fn run_receiver(
     }
 
     let n_streams = meta.parallel_streams.max(1);
-    let chunks_per_stream = (meta.chunk_count + n_streams - 1) / n_streams;
+    let chunks_per_stream = meta.chunk_count.div_ceil(n_streams);
     let mut handles       = Vec::new();
 
     for stream_id in 0..n_streams {
@@ -382,6 +377,7 @@ pub async fn run_receiver(
     Ok(dest)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn receive_chunk_stream(
     conn: Connection,
     start_chunk: u64,
@@ -429,16 +425,13 @@ async fn receive_chunk_stream(
 
             // Idempotent check — skip if already verified on disk
             if resume_from == chunk_size {
-                match checksum_range(&partial, chunk_start, chunk_end).await {
-                    Ok(on_disk_cs) => {
-                        tracing::debug!("Chunk {} fully on disk — skipping", chunk_index);
-                        let mut states = chunk_states.lock().await;
-                        states[chunk_index as usize].done     = true;
-                        states[chunk_index as usize].checksum = on_disk_cs;
-                        save_chunk_states(&partial, &states).await?;
-                        continue;
-                    }
-                    Err(_) => {}
+                if let Ok(on_disk_cs) = checksum_range(&partial, chunk_start, chunk_end).await {
+                    tracing::debug!("Chunk {} fully on disk — skipping", chunk_index);
+                    let mut states = chunk_states.lock().await;
+                    states[chunk_index as usize].done     = true;
+                    states[chunk_index as usize].checksum = on_disk_cs;
+                    save_chunk_states(&partial, &states).await?;
+                    continue;
                 }
             }
 

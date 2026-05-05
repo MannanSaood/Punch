@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// The type of access token being generated.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum TokenType {
     /// Temporary — single session, expires after use.
     TNo,
@@ -52,6 +53,7 @@ impl Token {
     }
 
     /// Returns true if this token allows another connection.
+    #[allow(dead_code)]
     pub fn can_connect(&self) -> bool {
         match &self.token_type {
             TokenType::TNo => true, // checked once, then expired
