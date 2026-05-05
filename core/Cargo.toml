@@ -1,6 +1,6 @@
 [package]
 name = "punch-cli"
-version = "0.1.0"
+version = "0.6.0"
 edition = "2021"
 authors = ["Syed Mannan Saood <your@email.com>"]
 description = "Punches through networks to connect two devices directly"

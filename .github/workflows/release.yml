@@ -1,11 +1,15 @@
 name: Release
 
-# Releases are NOT created on push to main — only when a semver-style tag is pushed,
-# or when you run this workflow manually (Actions → Release → Run workflow).
+# Runs when:
+# 1) You push a semver tag (v1.2.3), or
+# 2) You push to main and the `version` line in core/Cargo.toml changed, or
+# 3) You run the workflow manually (Actions → Release → Run workflow) and enter a tag.
 on:
   push:
+    branches:
+      - main
     tags:
-      - 'v*.*.*'   # e.g. v0.1.0, v1.2.3 (needs three numeric parts)
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       tag:
@@ -17,8 +21,61 @@ permissions:
   contents: write
 
 jobs:
+  release-plan:
+    name: Release plan
+    runs-on: ubuntu-latest
+    outputs:
+      run_release: ${{ steps.plan.outputs.run_release }}
+      checkout_ref: ${{ steps.plan.outputs.checkout_ref }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Decide whether to release
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+            echo "run_release=true" >> "$GITHUB_OUTPUT"
+            echo "checkout_ref=$TAG" >> "$GITHUB_OUTPUT"
+            echo "version=$TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/v* ]]; then
+            VER="${REF#refs/tags/}"
+            echo "run_release=true" >> "$GITHUB_OUTPUT"
+            echo "checkout_ref=$REF" >> "$GITHUB_OUTPUT"
+            echo "version=$VER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Push to main: only release when Cargo.toml version changes
+          if [ "$REF" = "refs/heads/main" ]; then
+            CUR=$(grep -m1 '^version' core/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+            PREV=$(git show HEAD~1:core/Cargo.toml 2>/dev/null | grep -m1 '^version' | sed -E 's/.*"([^"]+)".*/\1/' || true)
+            if [ -n "$CUR" ] && [ "$CUR" != "$PREV" ]; then
+              echo "run_release=true" >> "$GITHUB_OUTPUT"
+              echo "checkout_ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+              echo "version=v${CUR}" >> "$GITHUB_OUTPUT"
+            else
+              echo "run_release=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          echo "run_release=false" >> "$GITHUB_OUTPUT"
+
   build-release:
     name: Build ${{ matrix.target }}
+    needs: release-plan
+    if: needs.release-plan.outputs.run_release == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -46,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+          ref: ${{ needs.release-plan.outputs.checkout_ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -79,12 +136,13 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: build-release
+    needs: [release-plan, build-release]
+    if: needs.release-plan.outputs.run_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+          ref: ${{ needs.release-plan.outputs.checkout_ref }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -92,22 +150,13 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Get version from tag
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Punch ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ needs.release-plan.outputs.version }}
+          name: Punch ${{ needs.release-plan.outputs.version }}
           body: |
-            ## 👊 Punch ${{ steps.version.outputs.VERSION }}
+            ## 👊 Punch ${{ needs.release-plan.outputs.version }}
 
             Punches through networks to connect two devices directly.
             No VPN. No account. No cloud middleman.
@@ -135,4 +184,4 @@ jobs:
 
           files: artifacts/*
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          prerelease: ${{ contains(needs.release-plan.outputs.version, '-') }}
