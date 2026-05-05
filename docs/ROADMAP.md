@@ -3,7 +3,7 @@
 
 ---
 
-## v0.1 ✅ — Core Connection
+## v0.1 — Core Connection
 Two devices. One code. Direct connection.
 
 - WebSocket signalling server (Go) — stateless, matchmaker only
@@ -15,7 +15,7 @@ Two devices. One code. Direct connection.
 
 ---
 
-## v0.2 ✅ — Encrypted Relay
+## v0.2 — Encrypted Relay
 Zero knowledge claim is now actually true.
 
 - X25519 Diffie-Hellman key exchange via signalling server
@@ -25,7 +25,7 @@ Zero knowledge claim is now actually true.
 
 ---
 
-## v0.3 ✅ — Token Enforcement
+## v0.3 — Token Enforcement
 Access control that lives on your device.
 
 - T-No — ephemeral, nothing stored
@@ -37,7 +37,7 @@ Access control that lives on your device.
 
 ---
 
-## v0.4 ✅ — File Transfer
+## v0.4 — File Transfer
 Direct peer to peer. Resumable. Safe.
 
 - Iroh QUIC transport — hole punch + relay.iroh.network fallback
@@ -47,14 +47,14 @@ Direct peer to peer. Resumable. Safe.
 - Resumable via `.punch_partial` + `.punch_state`
 - Idempotent chunks — ACK-lost scenario handled correctly
 - Connection drop vs data corruption distinguished
-- Risk classification — 🔴 / 🟡 / 🟢
+- Risk classification — high / medium / low
 - Consent prompt with 30s timeout
 - Session fingerprint for verbal verification
 - Acceptance always logged
 
 ---
 
-## v0.5 ✅ — Port Forwarding
+## v0.5 — Port Forwarding
 Any port. TCP + UDP. No bottleneck.
 
 - Iroh QUIC — same stack as file transfer, same connectivity guarantees
@@ -70,7 +70,7 @@ Any port. TCP + UDP. No bottleneck.
 
 ---
 
-## v0.6 ✅ — Remote Terminal
+## v0.6 — Remote Terminal
 Secure shell access over **Iroh QUIC**. Explicit host consent. Local visibility and audit on the host.
 
 ```bash
@@ -94,7 +94,7 @@ punch shell connect <code>
 
 ---
 
-## v0.7 🔜 — Local Dashboard
+## v0.7 — Local Dashboard (planned)
 See everything Punch has ever done. On your machine only.
 
 ```bash
@@ -114,7 +114,7 @@ Zero external requests. Reads local files only. Svelte, compiled static bundle.
 
 ---
 
-## v0.8 🔜 — Developer Library
+## v0.8 — Developer Library (planned)
 Embed Punch in your own apps.
 
 ```rust
@@ -137,7 +137,7 @@ let msg = conn.recv().await?;
 
 ---
 
-## v1.0 🔜 — Public Launch
+## v1.0 — Public Launch (planned)
 Production ready. Real world tested. Properly distributed.
 
 **Hardening:**
@@ -180,12 +180,12 @@ Not committed. Only after v1.0 ships.
 
 | Version | Status | Key Deliverable |
 |---------|--------|-----------------|
-| v0.1 | ✅ Shipped | P2P connection works |
-| v0.2 | ✅ Shipped | Relay encrypted, zero knowledge true |
-| v0.3 | ✅ Shipped | Token enforcement, listen command |
-| v0.4 | ✅ Shipped | File transfer, Iroh QUIC, resumable |
-| v0.5 | ✅ Shipped | Port forwarding, TCP + UDP |
-| v0.6 | ✅ Shipped | Remote terminal + consent |
-| v0.7 | 🔜 | Local dashboard |
-| v0.8 | 🔜 | Developer library on crates.io |
-| v1.0 | 🔜 | Public launch |
+| v0.1 | Shipped | P2P connection works |
+| v0.2 | Shipped | Relay encrypted, zero knowledge true |
+| v0.3 | Shipped | Token enforcement, listen command |
+| v0.4 | Shipped | File transfer, Iroh QUIC, resumable |
+| v0.5 | Shipped | Port forwarding, TCP + UDP |
+| v0.6 | Shipped | Remote terminal + consent |
+| v0.7 | Planned | Local dashboard |
+| v0.8 | Planned | Developer library on crates.io |
+| v1.0 | Planned | Public launch |

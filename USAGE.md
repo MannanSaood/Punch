@@ -63,11 +63,11 @@ punch connect 4829 --log
 
 **Connection states:**
 ```
-Punching...                          → hole punch attempt
-✅ Punched! Direct connection.        → p2p, server gone
-❌ Couldn't punch. Relaying...        → relay fallback
-🔒 Connected via encrypted relay.     → E2E encrypted via relay.iroh.network
-🔑 Keys exchanged. End-to-end encrypted.
+Punching...                           → hole punch attempt
+Punched! Direct connection.           → p2p, server gone
+Couldn't punch. Relaying...         → relay fallback
+Connected via encrypted relay.        → E2E encrypted via relay.iroh.network
+Keys exchanged. End-to-end encrypted.
 ```
 
 ---
@@ -77,7 +77,7 @@ Punching...                          → hole punch attempt
 ```bash
 punch send video.mp4
 punch send /path/to/archive.zip
-punch send setup.exe                 # receiver sees 🔴 HIGH RISK warning
+punch send setup.exe                 # receiver sees HIGH RISK warning
 ```
 
 **What happens:**
@@ -101,10 +101,10 @@ punch send setup.exe                 # receiver sees 🔴 HIGH RISK warning
 
 | Token | If transfer drops |
 |-------|-----------------|
-| T-No | ❌ Cannot resume — generate new code |
-| Q-No (1 use left) | ❌ Cannot resume — warned before sending |
-| Q-No (2+ uses) | ✅ Resume costs 1 additional use |
-| P-No | ✅ Always resumable |
+| T-No | Cannot resume — generate new code |
+| Q-No (1 use left) | Cannot resume — warned before sending |
+| Q-No (2+ uses) | Resume costs 1 additional use |
+| P-No | Always resumable |
 
 ---
 
@@ -130,12 +130,12 @@ punch receive 6241 -d /tmp
 **Consent prompt (always shown):**
 ```
 ──────────────────────────────────────────────────
-  📦 Incoming file transfer request
+  Incoming file transfer request
 ──────────────────────────────────────────────────
   File:        setup.exe
   Size:        42.0 MB
   Type:        .exe
-  Risk:        🔴 HIGH RISK
+  Risk:        HIGH RISK
   Info:        Executable — can run code on your system
   Checksum:    a3f912bc77de1234...
   Fingerprint: a3f9-12bc-77de
@@ -149,9 +149,9 @@ punch receive 6241 -d /tmp
 
 | Level | Extensions |
 |-------|-----------|
-| 🔴 HIGH | `.exe .bat .sh .ps1 .dll .app .dmg .pkg .vbs` |
-| 🟡 MEDIUM | `.zip .tar .gz .rar .7z .apk .jar` |
-| 🟢 LOW | `.pdf .jpg .mp4 .txt .docx` and most others |
+| HIGH | `.exe .bat .sh .ps1 .dll .app .dmg .pkg .vbs` |
+| MEDIUM | `.zip .tar .gz .rar .7z .apk .jar` |
+| LOW | `.pdf .jpg .mp4 .txt .docx` and most others |
 
 **Acceptance always logged** to `~/.punch/logs/transfers.json`.
 
@@ -176,14 +176,14 @@ Type: T-No
 Protocol: TCP
 Port: 8096
 
-🔌 Starting Iroh endpoint... done
-🌐 Node ID: ki6htfv...
-🔐 Session fingerprint: 3a7f-12bc-88de
+Starting Iroh endpoint... done
+Node ID: ki6htfv...
+Session fingerprint: 3a7f-12bc-88de
    Ask connector to verify this fingerprint.
 
 Waiting for connector...
 
-⚡ Connector connected — forwarding port 8096 (TCP)
+Connector connected — forwarding port 8096 (TCP)
    Session: 3a7f-12bc-88de
    Press Ctrl+C to stop.
 
@@ -205,7 +205,7 @@ punch forward connect 9182 --udp          # enable UDP
 **Consent prompt:**
 ```
 ─────────────────────────────────────────
-  🔀 Incoming port forward request
+  Incoming port forward request
 ─────────────────────────────────────────
   Remote port:  8096 (TCP)
   Token type:   T-No
@@ -217,8 +217,8 @@ punch forward connect 9182 --udp          # enable UDP
 
 **After connecting:**
 ```
-✅ Connected (Iroh QUIC — direct or relay, automatic)
-🔀 Forwarding:
+Connected (Iroh QUIC — direct or relay, automatic)
+Forwarding:
    TCP: localhost:54231 → remote:8096
    Fingerprint: 3a7f-12bc-88de
    Press Ctrl+C to disconnect.
@@ -268,7 +268,7 @@ punch shell connect 4829 --server ws://localhost:8080
 ```bash
 punch verify 7731
 # Confirm? (yes/no): yes
-# ✅ Token 7731 verified.
+# Token 7731 verified.
 ```
 
 ---
@@ -277,7 +277,7 @@ punch verify 7731
 
 ```bash
 punch revoke 7731
-# 🗑️  Token 7731 revoked.
+# Token 7731 revoked.
 ```
 
 ---

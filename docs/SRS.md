@@ -281,12 +281,12 @@ The library SHALL be built on Tokio and expose async interfaces throughout.
 
 ### 6.2 Data the Server Sees
 ```
-✓ Connection timestamp
-✓ Token code (temporary, in-memory only)
-✓ STUN-derived public IPs (temporary, for handshake only)
-✗ Payload traffic (never)
-✗ User identity (never)
-✗ Persistent logs (never)
+Sees: Connection timestamp
+Sees: Token code (temporary, in-memory only)
+Sees: STUN-derived public IPs (temporary, for handshake only)
+Does not see: Payload traffic (never)
+Does not see: User identity (never)
+Does not see: Persistent logs (never)
 ```
 
 ---

@@ -23,7 +23,7 @@
 
 <br/>
 
-**[↓ Install](#-install) · [Quick Start](#-quick-start) · [All Commands](#-commands) · [How It Works](#-how-it-works) · [Self-Host](#-self-hosting) · [Roadmap](#-roadmap)**
+**[Install](#install) · [Quick Start](#quick-start) · [All Commands](#all-commands) · [How it works](#how-it-works) · [Self-hosting](#self-hosting) · [Roadmap](#roadmap)**
 
 <br/>
 
@@ -50,40 +50,35 @@ Punch does the simple thing.
 
 ## What Punch Actually Does
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│   punch generate          →   T-No: 4829                            │
-│                               Waiting for peer...                   │
-│                                                                     │
-│   punch connect 4829      →   Punching...                           │
-│                              ✅ Direct connection established.     |
-│                                                                     │
-│   That's it. Server forgot you both exist.                          │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  g["punch generate → T-No: 4829 — Waiting for peer..."]
+  c["punch connect 4829 → Punching... — Direct connection established."]
+  e["That's it. Server forgot you both exist."]
+  g --> e
+  c --> e
 ```
 
 One code. Two devices. Done.
 
 ---
 
-## 📦 What's Inside
+## What's Inside
 
 | Feature | Command | Status | Transport |
 |---------|---------|--------|-----------|
-| P2P connection | `punch generate` / `punch connect` | ✅ **Shipped** | QUIC + relay |
-| Encrypted relay fallback | automatic | ✅ **Shipped** | X25519 + ChaCha20 |
-| Token access control | T-No · Q-No · P-No | ✅ **Shipped** | — |
-| File transfer | `punch send` / `punch receive` | ✅ **Shipped** | Iroh QUIC |
-| Port forwarding | `punch forward` | ✅ **Shipped** | Iroh QUIC |
-| Remote terminal | `punch shell host` / `punch shell connect` | ✅ **Shipped** | Iroh QUIC + PTY (portable-pty, crossterm) |
-| Local dashboard | `punch dashboard` | 🔜 v0.7 | — |
-| Developer library | `punch-core` crate | 🔜 v0.8 | — |
+| P2P connection | `punch generate` / `punch connect` | **Shipped** | QUIC + relay |
+| Encrypted relay fallback | automatic | **Shipped** | X25519 + ChaCha20 |
+| Token access control | T-No · Q-No · P-No | **Shipped** | — |
+| File transfer | `punch send` / `punch receive` | **Shipped** | Iroh QUIC |
+| Port forwarding | `punch forward` | **Shipped** | Iroh QUIC |
+| Remote terminal | `punch shell host` / `punch shell connect` | **Shipped** | Iroh QUIC + PTY (portable-pty, crossterm) |
+| Local dashboard | `punch dashboard` | Planned (v0.7) | — |
+| Developer library | `punch-core` crate | Planned (v0.8) | — |
 
 ---
 
-## ⚡ Install
+## Install
 
 ### Download (no Rust required)
 
@@ -91,10 +86,10 @@ Grab the binary for your platform from [**Releases →**](https://github.com/Man
 
 | Platform | Binary |
 |----------|--------|
-| 🪟 Windows (x64) | `punch-windows-x86_64.exe` |
-| 🐧 Linux (x64) | `punch-linux-x86_64` |
-| 🍎 macOS (Intel) | `punch-macos-x86_64` |
-| 🍎 macOS (Apple Silicon) | `punch-macos-arm64` |
+| Windows (x64) | `punch-windows-x86_64.exe` |
+| Linux (x64) | `punch-linux-x86_64` |
+| macOS (Intel) | `punch-macos-x86_64` |
+| macOS (Apple Silicon) | `punch-macos-arm64` |
 
 **Windows — add to PATH:**
 ```powershell
@@ -116,11 +111,11 @@ cargo build --release
 # Binary: target/release/punch
 ```
 
-> ⚠️ Punch works best on WiFi. Mobile and corporate networks fall back to encrypted relay automatically.
+> **Note:** Punch works best on WiFi. Mobile and corporate networks fall back to encrypted relay automatically.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Connect two devices
 ```bash
@@ -130,7 +125,7 @@ punch generate
 
 # Device B
 punch connect 4829
-# ✅ Punched! Direct connection established.
+# Punched! Direct connection established.
 ```
 
 ### Send a file (with safety checks)
@@ -143,7 +138,7 @@ punch send invoice.pdf
 punch receive 6241 --dest ~/Downloads
 # Shows: filename, size, risk level, fingerprint
 # Accept? (yes/no): yes
-# ✅ Verified. Saved to ~/Downloads/invoice.pdf
+# Verified. Saved to ~/Downloads/invoice.pdf
 ```
 
 ### Send a large file (resumable)
@@ -158,7 +153,7 @@ punch send movie.mkv
 # Device B
 punch receive 1234 --dest ~/Downloads
 # Drop mid-transfer? Just run the same command again.
-# ↩️ Resuming: 187/310 chunks already verified
+# Resuming: 187/310 chunks already verified
 ```
 
 ### Forward a port (Jellyfin, dev server, anything)
@@ -167,13 +162,13 @@ punch receive 1234 --dest ~/Downloads
 punch forward expose 8096
 
 # T-No: 9182 — share this with Device B
-# 🔐 Fingerprint: 3a7f-12bc-88de
+# Fingerprint: 3a7f-12bc-88de
 
 # Device B
 punch forward connect 9182
 # Verify fingerprint: 3a7f-12bc-88de
 # Connect? (yes/no): yes
-# 🔀 TCP: localhost:54231 → remote:8096
+# TCP: localhost:54231 → remote:8096
 # Open http://localhost:54231 in your browser
 ```
 
@@ -211,14 +206,15 @@ punch connect 7731
 
 ---
 
-## 🔑 Token System
+## Token System
 
 The token type **is** the security policy. No settings menu, no dashboards, no OAuth.
 
-```
-T-No  → Temporary     Single session. Expires immediately after use.
-Q-No  → Quantised     Expires after exactly N connections. Persisted locally.
-P-No  → Permanent     Lives forever. Requires explicit verification first.
+```mermaid
+flowchart TB
+  t["T-No → Temporary — Single session. Expires immediately after use."]
+  q["Q-No → Quantised — Expires after exactly N connections. Persisted locally."]
+  p["P-No → Permanent — Lives forever. Requires explicit verification first."]
 ```
 
 ```bash
@@ -236,7 +232,7 @@ punch verify <code>             # activate a P-No token
 
 ---
 
-## 📁 File Transfer
+## File Transfer
 
 Files go **directly peer to peer via Iroh QUIC**. The signalling server never sees a byte of your data.
 
@@ -256,13 +252,13 @@ Files go **directly peer to peer via Iroh QUIC**. The signalling server never se
 
 **Every receive has:**
 - Consent prompt before any data flows
-- Risk classification: 🔴 executables · 🟡 archives · 🟢 media/docs
+- Risk classification: high-risk executables, archives with possible payloads, media and documents
 - Session fingerprint for verbal verification with sender
 - Acceptance always logged to `~/.punch/logs/transfers.json`
 
 ```bash
 punch send video.mp4
-punch send setup.exe              # receiver sees 🔴 HIGH RISK warning
+punch send setup.exe              # receiver sees HIGH RISK warning
 
 punch receive 1234                # saves to current directory
 punch receive 1234 --dest ~/Downloads
@@ -271,7 +267,7 @@ punch receive 1234 -d "C:\Users\UserName\Downloads"
 
 ---
 
-## 🔀 Port Forwarding
+## Port Forwarding
 
 Forward any TCP or UDP port directly between two devices. No relay bottleneck — traffic goes peer to peer over Iroh QUIC.
 
@@ -305,73 +301,73 @@ punch forward connect <code> --udp         # enable UDP
 
 ---
 
-## 🔒 Security Model
+## Security Model
 
-```
-Layer 1 — Transport:      Iroh QUIC · TLS 1.3 · peer public key auth
-Layer 2 — Relay:          X25519 key exchange · ChaCha20-Poly1305
-                          Server sees gibberish it cannot decrypt
-Layer 3 — Authorization:  Token policy enforced on your device
-                          Port whitelist enforced in-band
-Layer 4 — Integrity:      SHA256 per chunk (files) · stream framing (ports · shell data)
-Layer 5 — Consent:        Explicit accept before file receive
-                          Fingerprint verification before port forward
-Layer 6 — Audit:          Local logs only · never leaves your device
+```mermaid
+flowchart TB
+  L1["Layer 1 — Transport: Iroh QUIC · TLS 1.3 · peer public key auth"]
+  L2["Layer 2 — Relay: X25519 key exchange · ChaCha20-Poly1305 — Server sees gibberish it cannot decrypt"]
+  L3["Layer 3 — Authorization: Token policy enforced on your device — Port whitelist enforced in-band"]
+  L4["Layer 4 — Integrity: SHA256 per chunk (files) · stream framing (ports · shell data)"]
+  L5["Layer 5 — Consent: Explicit accept before file receive — Fingerprint verification before port forward"]
+  L6["Layer 6 — Audit: Local logs only · never leaves your device"]
+  L1 --> L2 --> L3 --> L4 --> L5 --> L6
 ```
 
 **What the server sees:**
-```
-✓ Two devices asked to be matched (a 4-digit code, temporarily)
-✓ The handshake (public keys, briefly, for encryption setup)
-✗ Your file contents (never)
-✗ Your port traffic (never)
-✗ Your identity (never)
-✗ Anything after the handshake (server exits the session)
+
+```mermaid
+flowchart TB
+  W1["Two devices asked to be matched (a 4-digit code, temporarily)"]
+  W2["The handshake (public keys, briefly, for encryption setup)"]
+  W3["Your file contents (never)"]
+  W4["Your port traffic (never)"]
+  W5["Your identity (never)"]
+  W6["Anything after the handshake (server exits the session)"]
+  W1 --- W2 --- W3 --- W4 --- W5 --- W6
 ```
 
 ---
 
-## 🔧 How It Works
+## How It Works
 
-```
-                    ┌──────────────────────────────────┐
-                    │       Punch Signalling Server    │
-                    │    (Go · stateless · forgets)    │
-                    └──────────────┬───────────────────┘
-                   WebSocket       │       WebSocket
-                  (handshake only) │  (handshake only)
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          │                        │                        │
-  ┌───────▼──────────┐             │             ┌──────────▼───────┐
-  │   Device A       │             │             │    Device B      │
-  │   punch CLI      │◄────────────────────────►│    punch CLI      │
-  │   (Rust)         │    Iroh QUIC P2P          │    (Rust)        │
-  └──────────────────┘  (direct or relay.iroh)   └──────────────────┘
-          │                                               │
-          ▼                                               ▼
-   ~/.punch/                                       ~/.punch/
-   tokens.json                                     tokens.json
-   logs/sessions.json                              logs/sessions.json
-   logs/transfers.json                             logs/transfers.json
-   logs/forward.json                               logs/forward.json
-   logs/shell_sessions.json                        logs/shell_sessions.json
+```mermaid
+flowchart TB
+  subgraph signalling["Signalling"]
+    SS["Punch Signalling Server — Go · stateless · forgets"]
+  end
+  subgraph devA["Device A"]
+    A["punch CLI — Rust"]
+    LA["~/.punch/ — tokens.json · logs/sessions.json · logs/transfers.json · logs/forward.json · logs/shell_sessions.json"]
+  end
+  subgraph devB["Device B"]
+    B["punch CLI — Rust"]
+    LB["~/.punch/ — tokens.json · logs/sessions.json · logs/transfers.json · logs/forward.json · logs/shell_sessions.json"]
+  end
+  SS <-->|WebSocket — handshake only| A
+  SS <-->|WebSocket — handshake only| B
+  A <-->|Iroh QUIC P2P — direct or relay.iroh| B
+  A --> LA
+  B --> LB
 ```
 
 **Connection flow:**
-```
-1. Device A generates a code, registers with signalling server
-2. Device B enters the code, server matches them
-3. Both exchange cryptographic addresses (EndpointAddr)
-4. Server is done — exits the session, forgets everything
-5. Iroh attempts direct QUIC connection (hole punch)
-6. If blocked: automatic fallback to relay.iroh.network (encrypted)
-7. All subsequent traffic is peer-to-peer
+
+```mermaid
+flowchart TB
+  S1["1. Device A generates a code, registers with signalling server"]
+  S2["2. Device B enters the code, server matches them"]
+  S3["3. Both exchange cryptographic addresses (EndpointAddr)"]
+  S4["4. Server is done — exits the session, forgets everything"]
+  S5["5. Iroh attempts direct QUIC connection (hole punch)"]
+  S6["6. If blocked: automatic fallback to relay.iroh.network (encrypted)"]
+  S7["7. All subsequent traffic is peer-to-peer"]
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
 ```
 
 ---
 
-## 🏠 Self-Hosting
+## Self-Hosting
 
 The signalling server is tiny (stateless Go binary) and easy to self-host. You don't have to trust anyone's infrastructure.
 
@@ -404,7 +400,7 @@ punch shell connect <code> --server ws://your-server.com:8080
 
 ---
 
-## 🗂️ Local Data
+## Local Data
 
 Everything Punch stores lives on your device. Zero central storage.
 
@@ -418,7 +414,7 @@ Everything Punch stores lives on your device. Zero central storage.
 
 ---
 
-## 📖 All Commands
+## All Commands
 
 ```bash
 # Connection
@@ -465,63 +461,74 @@ Full reference: [USAGE.md](USAGE.md)
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-```
-v0.1 ✅  P2P connection + encrypted relay fallback
-v0.2 ✅  X25519 key exchange + ChaCha20-Poly1305 relay encryption
-v0.3 ✅  T-No / Q-No / P-No token enforcement + punch listen
-v0.4 ✅  File transfer — Iroh QUIC, IDM chunked, resumable, consent
-v0.5 ✅  Port forwarding — TCP + UDP, Iroh QUIC, zero bottleneck
-v0.6 ✅  Remote terminal — punch shell + consent + local monitoring
-v0.7 🔜  Local dashboard — sessions, tokens, transfers, port logs
-v0.8 🔜  Developer library — punch-core on crates.io
-v1.0 🔜  Public launch — hardened, documented, distributed
-```
-
----
-
-## 🏗️ Project Structure
-
-```
-punch/
-├── core/src/
-│   ├── main.rs          CLI entry point + command definitions
-│   ├── cli.rs           Command handlers
-│   ├── punch.rs         Hole punching engine
-│   ├── stun.rs          STUN NAT discovery
-│   ├── signaling.rs     WebSocket signalling client
-│   ├── crypto.rs        X25519 + ChaCha20 relay encryption
-│   ├── transfer.rs      Iroh QUIC file transfer (IDM-style)
-│   ├── forward.rs       Iroh QUIC port forwarding (TCP + UDP)
-│   ├── shell.rs         Remote shell over Iroh QUIC + PTY
-│   ├── shell_config.rs  Shell blocklist, suspicious patterns, logs
-│   ├── safety.rs        Risk classification + consent prompts
-│   ├── token.rs         Token generation
-│   ├── token_store.rs   Token persistence + enforcement
-│   ├── logger.rs        Local session logging
-│   └── dashboard_server.rs  Local web dashboard server
-├── server/
-│   ├── cmd/main.go      Entry point
-│   └── internal/
-│       ├── signaling/hub.go  Session matchmaking
-│       └── config/config.go  Server configuration
-├── docs/
-│   ├── ROADMAP.md       Detailed version roadmap
-│   ├── SRS.md           Software requirements spec
-│   └── CONTRIBUTING.md  Contribution guide
-├── .github/workflows/
-│   ├── ci.yml           Build + lint on every push
-│   └── release.yml      Cross-platform binaries on tag
-├── Dockerfile           Server container
-├── render.yaml          Render deployment config
-├── USAGE.md             Complete command reference (CLI)
-└── README.md
+```mermaid
+flowchart LR
+  subgraph shipped["Shipped"]
+    V01["v0.1 — P2P connection + encrypted relay fallback"]
+    V02["v0.2 — X25519 key exchange + ChaCha20-Poly1305 relay encryption"]
+    V03["v0.3 — T-No / Q-No / P-No token enforcement + punch listen"]
+    V04["v0.4 — File transfer — Iroh QUIC, IDM chunked, resumable, consent"]
+    V05["v0.5 — Port forwarding — TCP + UDP, Iroh QUIC, zero bottleneck"]
+    V06["v0.6 — Remote terminal — punch shell + consent + local monitoring"]
+  end
+  subgraph upcoming["Upcoming"]
+    V07["v0.7 — Local dashboard — sessions, tokens, transfers, port logs"]
+    V08["v0.8 — Developer library — punch-core on crates.io"]
+    V10["v1.0 — Public launch — hardened, documented, distributed"]
+  end
+  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V10
 ```
 
 ---
 
-## 🤝 Contributing
+## Project Structure
+
+```mermaid
+flowchart TB
+  root[punch/]
+  root --> core[core/src/]
+  root --> server[server/]
+  root --> docs[docs/]
+  root --> ghw[.github/workflows/]
+  root --> docker[Dockerfile — Server container]
+  root --> render[render.yaml — Render deployment config]
+  root --> usage[USAGE.md — Complete command reference CLI]
+  root --> readme[README.md]
+
+  core --> main_rs["main.rs — CLI entry point + command definitions"]
+  core --> cli_rs["cli.rs — Command handlers"]
+  core --> punch_rs["punch.rs — Hole punching engine"]
+  core --> stun_rs["stun.rs — STUN NAT discovery"]
+  core --> signaling_rs["signaling.rs — WebSocket signalling client"]
+  core --> crypto_rs["crypto.rs — X25519 + ChaCha20 relay encryption"]
+  core --> transfer_rs["transfer.rs — Iroh QUIC file transfer IDM-style"]
+  core --> forward_rs["forward.rs — Iroh QUIC port forwarding TCP + UDP"]
+  core --> shell_rs["shell.rs — Remote shell over Iroh QUIC + PTY"]
+  core --> shellcfg_rs["shell_config.rs — Shell blocklist, suspicious patterns, logs"]
+  core --> safety_rs["safety.rs — Risk classification + consent prompts"]
+  core --> token_rs["token.rs — Token generation"]
+  core --> tokenstore_rs["token_store.rs — Token persistence + enforcement"]
+  core --> logger_rs["logger.rs — Local session logging"]
+  core --> dash_rs["dashboard_server.rs — Local web dashboard server"]
+
+  server --> main_go["cmd/main.go — Entry point"]
+  server --> internal["internal/"]
+  internal --> hub_go["signaling/hub.go — Session matchmaking"]
+  internal --> cfg_go["config/config.go — Server configuration"]
+
+  docs --> roadmap_md["ROADMAP.md — Detailed version roadmap"]
+  docs --> srs_md["SRS.md — Software requirements spec"]
+  docs --> contrib_md["CONTRIBUTING.md — Contribution guide"]
+
+  ghw --> ci_yml["ci.yml — Build + lint on every push"]
+  ghw --> rel_yml["release.yml — Cross-platform binaries on tag"]
+```
+
+---
+
+## Contributing
 
 Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
 
@@ -540,7 +547,7 @@ Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
 
 ---
 
-## 📜 License
+## License
 
 MIT. Do whatever you want. Don't sell it closed-source.
 
