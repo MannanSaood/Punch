@@ -3,7 +3,6 @@
 # ========================
 core/target/
 core/**/*.rs.bk
-core/Cargo.lock
 
 # ========================
 # Go
