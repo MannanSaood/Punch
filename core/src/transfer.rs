@@ -12,6 +12,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use anyhow::Context;
@@ -145,6 +146,8 @@ pub async fn run_sender(
     total_bar.set_prefix("Total");
 
     let path = Arc::new(path.to_path_buf());
+    let bytes_sent = Arc::new(AtomicU64::new(0));
+    let total_file_size = meta.total_size;
 
     println!("Waiting for receiver to connect...\n");
 
@@ -175,13 +178,17 @@ pub async fn run_sender(
         let conn      = conn.clone();
         let path      = Arc::clone(&path);
         let total_bar = Arc::clone(&total_bar);
+        let bytes_sent = Arc::clone(&bytes_sent);
         let pb        = mp.add(ProgressBar::new(0));
         pb.set_style(style.clone());
         pb.set_prefix(format!("Stream {}", i));
 
         handles.push(tokio::spawn(async move {
             match conn.accept_bi().await {
-                Ok((send, recv)) => serve_chunk_stream(send, recv, path, pb, total_bar).await,
+                Ok((send, recv)) => {
+                    serve_chunk_stream(send, recv, path, pb, total_bar, bytes_sent, total_file_size)
+                        .await
+                }
                 Err(e)           => Err(anyhow::anyhow!("Stream accept: {}", e)),
             }
         }));
@@ -191,7 +198,8 @@ pub async fn run_sender(
         handle.await.context("Task panicked")?.context("Stream error")?;
     }
 
-    total_bar.finish_with_message("✅ All chunks sent");
+    total_bar.set_position(meta.total_size);
+    total_bar.finish_with_message("All chunks sent");
     println!("\n✅ Transfer complete.");
     endpoint.close().await;
     Ok(())
@@ -203,6 +211,8 @@ async fn serve_chunk_stream(
     path: Arc<PathBuf>,
     pb: ProgressBar,
     total_bar: Arc<ProgressBar>,
+    bytes_sent: Arc<AtomicU64>,
+    total_file_size: u64,
 ) -> anyhow::Result<()> {
     let file_size  = tokio::fs::metadata(path.as_path()).await?.len();
     let chunk_size = chunk_size_for(file_size);
@@ -248,7 +258,8 @@ async fn serve_chunk_stream(
             send.write_all(&buf[..n]).await?;
             sent += n as u64;
             pb.inc(n as u64);
-            total_bar.inc(n as u64);
+            let total = bytes_sent.fetch_add(n as u64, Ordering::Relaxed) + n as u64;
+            total_bar.set_position(total.min(total_file_size));
         }
 
         let cs = format!("{:x}", hasher.finalize());
@@ -321,9 +332,8 @@ pub async fn run_receiver(
     total_bar.set_prefix("Total");
 
     {
-        let states  = chunk_states.lock().await;
-        let already = states.iter().map(|c| c.received).sum::<u64>();
-        total_bar.set_position(already);
+        let states = chunk_states.lock().await;
+        total_bar.set_position(bytes_completed(&states).min(meta.total_size));
     }
 
     let n_streams = meta.parallel_streams.max(1);
@@ -356,6 +366,11 @@ pub async fn run_receiver(
         handle.await.context("Task panicked")?.context("Stream error")?;
     }
 
+    {
+        let states = chunk_states.lock().await;
+        let completed = bytes_completed(&states);
+        total_bar.set_position(completed.min(meta.total_size));
+    }
     total_bar.finish_with_message("Verifying...");
 
     print!("\n🔐 Verifying file integrity... ");
@@ -371,7 +386,9 @@ pub async fn run_receiver(
     tokio::fs::rename(&partial, &dest).await?;
     let state_file = dest_dir.join(format!("{}.punch_state", meta.filename));
     let _ = tokio::fs::remove_file(state_file).await;
-    println!("✅ Saved to: {}", dest.display());
+    total_bar.set_position(meta.total_size);
+    total_bar.finish_with_message("Complete");
+    println!("Saved to: {}", dest.display());
 
     endpoint.close().await;
     Ok(dest)
@@ -417,7 +434,10 @@ async fn receive_chunk_stream(
                 (s.done, s.received)
             };
 
-            if done { continue; }
+            if done {
+                sync_total_progress(&total_bar, &chunk_states, meta.total_size).await;
+                continue;
+            }
 
             let chunk_start = chunk_index * meta.chunk_size;
             let chunk_end   = (chunk_start + meta.chunk_size).min(meta.total_size);
@@ -429,8 +449,10 @@ async fn receive_chunk_stream(
                     tracing::debug!("Chunk {} fully on disk — skipping", chunk_index);
                     let mut states = chunk_states.lock().await;
                     states[chunk_index as usize].done     = true;
+                    states[chunk_index as usize].received = chunk_size;
                     states[chunk_index as usize].checksum = on_disk_cs;
                     save_chunk_states(&partial, &states).await?;
+                    sync_total_progress(&total_bar, &chunk_states, meta.total_size).await;
                     continue;
                 }
             }
@@ -506,7 +528,12 @@ async fn receive_chunk_stream(
                 received        += n as u64;
                 since_last_save += n as u64;
                 pb.inc(n as u64);
-                total_bar.inc(n as u64);
+                {
+                    let mut states = chunk_states.lock().await;
+                    states[chunk_index as usize].received = received;
+                    let pos = bytes_completed(&states);
+                    total_bar.set_position(pos.min(meta.total_size));
+                }
 
                 if since_last_save >= SAVE_INTERVAL_BYTES {
                     save_progress(&chunk_states, chunk_index, received, &partial).await?;
@@ -567,9 +594,10 @@ async fn receive_chunk_stream(
                 states[chunk_index as usize].received = chunk_size;
                 states[chunk_index as usize].checksum = actual_cs;
                 save_chunk_states(&partial, &states).await?;
+                sync_total_progress(&total_bar, &chunk_states, meta.total_size).await;
             }
 
-            pb.finish_with_message(format!("✓ chunk {}", chunk_index));
+            pb.finish_with_message(format!("chunk {}", chunk_index));
         }
 
         break 'retry;
@@ -579,6 +607,25 @@ async fn receive_chunk_stream(
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+fn bytes_completed(states: &[ChunkState]) -> u64 {
+    states
+        .iter()
+        .map(|c| if c.done { c.size } else { c.received.min(c.size) })
+        .sum()
+}
+
+async fn sync_total_progress(
+    total_bar: &ProgressBar,
+    chunk_states: &Arc<Mutex<Vec<ChunkState>>>,
+    total_size: u64,
+) {
+    let pos = {
+        let states = chunk_states.lock().await;
+        bytes_completed(&states)
+    };
+    total_bar.set_position(pos.min(total_size));
+}
 
 async fn save_progress(
     chunk_states: &Arc<Mutex<Vec<ChunkState>>>,

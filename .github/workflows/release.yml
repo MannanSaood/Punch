@@ -173,10 +173,10 @@ jobs:
             ## Usage
             ```bash
             # Device A — generate a code
-            punch generate --server wss://punch-8o2u.onrender.com
+            punch generate
 
-            # Device B — connect
-            punch connect <code> --server wss://punch-8o2u.onrender.com
+            # Device B — connect (uses default ws://129.159.21.6:8080)
+            punch connect <code>
             ```
 
             ## What's new

@@ -1,5 +1,5 @@
 # Punch — Complete Usage Guide
-**v0.6.0** · [Back to README](README.md)
+**v0.7.0** · [Back to README](README.md)
 
 ---
 
@@ -9,7 +9,7 @@ These work with every command:
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--server <url>` | Signalling server URL | `wss://punch-8o2u.onrender.com` |
+| `--server <url>` | Signalling server URL | `ws://129.159.21.6:8080` |
 | `--log` | Log session to `~/.punch/logs/sessions.json` | off |
 | `-v, --verbose` | Debug output | off |
 
@@ -57,9 +57,10 @@ punch listen 7731
 
 ```bash
 punch connect 4829
-punch connect 4829 --server wss://punch-8o2u.onrender.com
 punch connect 4829 --log
 ```
+
+After a direct or relay session is up, `connect` keeps the link open for **line chat** (type a message and press Enter; peer lines show as `< …`). Use this session for follow-on commands in other terminals (`punch send`, `punch receive`, `punch forward`, `punch shell`) — they reuse the same token and signalling path. With `punch dashboard` running, connect sessions appear live in the UI.
 
 **Connection states:**
 ```
@@ -303,7 +304,7 @@ punch dashboard
 # Opens http://localhost:7777
 ```
 
-Shows session history, token status, file transfer log, port forward log (shell sessions: see `~/.punch/logs/shell_sessions.json` until dashboard integration). Reads local files only — zero external requests.
+Svelte UI with live WebSocket updates: active sessions, transfers (with progress), forwards, shell commands, and token status. Reads local `~/.punch` data only — no external requests. Build the UI once with `cd dashboard && npm install && npm run build` (or let `cargo build` run it when npm is available).
 
 ---
 

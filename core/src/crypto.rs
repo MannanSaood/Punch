@@ -49,7 +49,6 @@ impl SessionCipher {
 
     /// Encrypt a plaintext message.
     /// Returns nonce + ciphertext — nonce is needed for decryption.
-    #[allow(dead_code)]
     pub fn encrypt(&self, plaintext: &[u8]) -> anyhow::Result<Vec<u8>> {
         let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
         let ciphertext = self.cipher

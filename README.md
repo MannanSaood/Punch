@@ -396,7 +396,7 @@ punch shell connect <code> --server ws://your-server.com:8080
 | `PUNCH_RELAY_ENABLED` | `true` | Enable encrypted relay fallback |
 | `PUNCH_MAX_SESSIONS` | `1000` | Max concurrent sessions |
 
-**Public server:** `wss://punch-8o2u.onrender.com` (free tier, may sleep after inactivity)
+**Public server:** `ws://129.159.21.6:8080` (Oracle VM; default for the CLI — override with `--server`)
 
 ---
 

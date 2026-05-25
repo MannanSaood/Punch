@@ -1,0 +1,34 @@
+# Run on the Oracle VM: Caddy terminates TLS (wss://) and proxies to punch-server.
+# Requires PUNCH_IMAGE and PUNCH_DOMAIN in .env (deploy workflow writes this).
+
+services:
+  punch-server:
+    image: ${PUNCH_IMAGE}
+    container_name: punch-server
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      PUNCH_PORT: "8080"
+      PUNCH_RELAY_ENABLED: "true"
+      PUNCH_MAX_SESSIONS: "1000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: punch-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUNCH_DOMAIN: ${PUNCH_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - punch-server
+
+volumes:
+  caddy_data:
+  caddy_config:

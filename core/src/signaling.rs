@@ -129,6 +129,7 @@ impl SignalingClient {
         log_enabled: bool,
         session_start: chrono::DateTime<chrono::Utc>,
         code: &str,
+        session_id: &str,
     ) -> anyhow::Result<()> {
 
         // --- Step 1: Key Exchange ---
@@ -168,7 +169,20 @@ impl SignalingClient {
         println!("🔑 Keys exchanged. End-to-end encrypted.\n");
 
         // --- Step 3: Encrypted relay loop ---
-        self.encrypted_relay_loop(cipher, log_enabled, session_start, code).await
+        self.encrypted_relay_loop(cipher, log_enabled, session_start, code, session_id)
+            .await
+    }
+
+    async fn send_relay(&mut self, cipher: &SessionCipher, plain: &[u8]) -> anyhow::Result<()> {
+        let encrypted = cipher.encrypt(plain)?;
+        self.send(SignalMessage {
+            msg_type: MsgType::Relay,
+            code: Some(self.code.clone()),
+            payload: Some(serde_json::json!({
+                "data": base64_encode(&encrypted)
+            })),
+        })
+        .await
     }
 
     async fn encrypted_relay_loop(
@@ -177,11 +191,28 @@ impl SignalingClient {
         log_enabled: bool,
         session_start: chrono::DateTime<chrono::Utc>,
         code: &str,
+        session_id: &str,
     ) -> anyhow::Result<()> {
-        println!("Session active via encrypted relay. Press Ctrl+C to disconnect.\n");
+        crate::telemetry::print_connect_session_help();
+        println!("(Relay mode — messages go through the signalling server, encrypted.)\n");
 
-        let bytes_sent: u64 = 0;
+        let mut bytes_sent: u64 = 0;
         let mut bytes_received: u64 = 0;
+
+        let (stdin_tx, mut stdin_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        std::thread::spawn(move || {
+            let mut line = String::new();
+            let stdin = std::io::stdin();
+            loop {
+                line.clear();
+                if stdin.read_line(&mut line).is_err() {
+                    break;
+                }
+                if stdin_tx.send(line.clone()).is_err() {
+                    break;
+                }
+            }
+        });
 
         loop {
             tokio::select! {
@@ -193,7 +224,11 @@ impl SignalingClient {
                                     match cipher.decrypt(&encrypted) {
                                         Ok(plain) => {
                                             bytes_received += plain.len() as u64;
-                                            tracing::debug!("Received {} bytes (decrypted)", plain.len());
+                                            if let Ok(text) = std::str::from_utf8(&plain) {
+                                                if !text.trim().is_empty() {
+                                                    println!("< {}", text.trim_end());
+                                                }
+                                            }
                                         }
                                         Err(e) => {
                                             tracing::warn!("Decryption failed: {}", e);
@@ -213,6 +248,24 @@ impl SignalingClient {
                         _ => {}
                     }
                 }
+                line = stdin_rx.recv() => {
+                    if let Some(l) = line {
+                        let trimmed = l.trim_end();
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        let payload = format!("{trimmed}\n");
+                        match self.send_relay(&cipher, payload.as_bytes()).await {
+                            Ok(()) => {
+                                bytes_sent += payload.len() as u64;
+                                println!("> {}", trimmed);
+                            }
+                            Err(e) => tracing::warn!("Send failed: {}", e),
+                        }
+                    } else {
+                        break;
+                    }
+                }
                 _ = tokio::signal::ctrl_c() => {
                     println!("\nDisconnecting...");
                     break;
@@ -220,9 +273,17 @@ impl SignalingClient {
             }
         }
 
+        crate::telemetry::emit_session_end(
+            session_id,
+            code,
+            ConnectionType::Relay,
+            bytes_sent,
+            bytes_received,
+        );
+
         if log_enabled {
             let log = crate::logger::SessionLog {
-                session_id: uuid::Uuid::new_v4().to_string(),
+                session_id: session_id.to_string(),
                 token_code: code.to_string(),
                 connection_type: ConnectionType::Relay,
                 started_at: session_start,
@@ -231,6 +292,7 @@ impl SignalingClient {
                 bytes_received,
             };
             crate::logger::write_log(log).await?;
+            println!("Session logged to ~/.punch/logs/sessions.json");
         }
 
         Ok(())

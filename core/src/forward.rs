@@ -157,19 +157,34 @@ pub async fn run_exposer(
 
     verify_handshake_exposer(&conn, handshake).await?;
 
+    let forward_id = uuid::Uuid::new_v4().to_string();
+    crate::active_state::register_forward(crate::active_state::ActiveForward {
+        id: forward_id.clone(),
+        port: handshake.allowed_port,
+        protocol: handshake.protocol.to_string(),
+        token_type: handshake.token_type.clone(),
+        fingerprint: handshake.session_fingerprint.clone(),
+        started_at: chrono::Utc::now().to_rfc3339(),
+        stream_count: 0,
+    })
+    .await;
+
     let port     = handshake.allowed_port;
     let protocol = handshake.protocol.clone();
 
     if protocol == ForwardProtocol::Tcp || protocol == ForwardProtocol::Both {
         let conn_tcp    = conn.clone();
         let streams_tcp = Arc::clone(&active_streams);
+        let forward_id_tcp = forward_id.clone();
         tokio::spawn(async move {
             loop {
                 match conn_tcp.accept_bi().await {
                     Ok((send, recv)) => {
                         let count = streams_tcp.fetch_add(1, Ordering::SeqCst) + 1;
+                        crate::active_state::update_forward_streams(&forward_id_tcp, count).await;
                         println!("  → TCP stream opened ({} active)", count);
                         let streams_clone = Arc::clone(&streams_tcp);
+                        let fid_spawn = forward_id_tcp.clone();
                         tokio::spawn(async move {
                             if let Err(e) = forward_tcp_stream(send, recv, port).await {
                                 eprintln!(
@@ -179,6 +194,7 @@ pub async fn run_exposer(
                                 tracing::warn!(error = %e, "TCP forward stream");
                             }
                             let remaining = streams_clone.fetch_sub(1, Ordering::SeqCst) - 1;
+                            crate::active_state::update_forward_streams(&fid_spawn, remaining).await;
                             println!("  ← TCP stream closed ({} active)", remaining);
                         });
                     }
@@ -201,7 +217,8 @@ pub async fn run_exposer(
     }
 
     tokio::signal::ctrl_c().await?;
-    println!("\n🛑 Stopping port forward.");
+    println!("\nStopping port forward.");
+    crate::active_state::deregister_forward(&forward_id).await;
     endpoint.close().await;
     Ok(())
 }

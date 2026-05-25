@@ -201,6 +201,16 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
     let session_id = Uuid::new_v4().to_string();
     let session_start = chrono::Utc::now();
 
+    crate::active_state::register_shell(crate::active_state::ActiveShell {
+        id: session_id.clone(),
+        peer_node_id: peer_id.clone(),
+        token_type: handshake.token_type.clone(),
+        fingerprint: handshake.session_fingerprint.clone(),
+        started_at: session_start.to_rfc3339(),
+        cmd_count: 0,
+    })
+    .await;
+
     // ── Command interceptor ───────────────────────────────────────────────────
     // We intercept input from Device A before it hits the PTY.
     // This is how we block/alert on commands.
@@ -335,6 +345,7 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
     let commands_log_monitor = Arc::clone(&commands_log_clone);
     let ctrl_send_monitor = Arc::clone(&ctrl_send);
     let _kill_tx_monitor = kill_tx.clone();
+    let session_id_monitor = session_id.clone();
 
     tokio::spawn(async move {
         while let Some(cmd) = cmd_rx.recv().await {
@@ -382,14 +393,26 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
                     command: cmd.clone(),
                     disposition,
                 });
+                crate::active_state::shell_command_event(
+                    &session_id_monitor,
+                    &cmd,
+                    "suspicious",
+                )
+                .await;
             } else {
                 // Normal command — just log it
                 println!("  [{}] {}", timestamp.format("%H:%M:%S"), cmd);
                 commands_log_monitor.lock().await.push(CommandEntry {
                     timestamp,
-                    command: cmd,
+                    command: cmd.clone(),
                     disposition: CommandDisposition::Allowed,
                 });
+                crate::active_state::shell_command_event(
+                    &session_id_monitor,
+                    &cmd,
+                    "allowed",
+                )
+                .await;
             }
         }
     });
@@ -413,6 +436,8 @@ pub async fn run_host(endpoint: Endpoint, handshake: &ShellHandshake) -> anyhow:
     // Kill child process
     let _ = child.kill();
     let _ = pty_in_tx.send(Vec::new());
+
+    crate::active_state::deregister_shell(&session_id).await;
 
     // Write session audit log
     let commands = std::mem::take(&mut *commands_log.lock().await);

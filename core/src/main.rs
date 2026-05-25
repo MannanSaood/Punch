@@ -12,17 +12,19 @@ mod safety;
 mod forward;
 mod shell;
 mod shell_config;
+mod active_state;
+mod telemetry;
 
 use clap::{Parser, Subcommand};
 
-const DEFAULT_SERVER: &str = "wss://punch-8o2u.onrender.com";
+const DEFAULT_SERVER: &str = "ws://129.159.21.6:8080";
 const STARTUP_NOTE: &str = "Note: Punch works best on WiFi. Mobile/corporate networks may fall back to relay.";
 
 #[derive(Parser)]
 #[command(
     name = "punch",
     about = "Punches through networks to connect two devices directly",
-    version = "0.6.0",
+    version = "0.7.0",
     author = "Syed Mannan Saood"
 )]
 struct Cli {

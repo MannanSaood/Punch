@@ -1,8 +1,8 @@
 [package]
 name = "punch-cli"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
-authors = ["Syed Mannan Saood <your@email.com>"]
+authors = ["Syed Mannan Saood <syed.mannan@outlook.com>"]
 description = "Punches through networks to connect two devices directly"
 license = "MIT"
 repository = "https://github.com/MannanSaood/punch"
@@ -61,7 +61,7 @@ x25519-dalek = { version = "2", features = ["static_secrets"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 
 # Local dashboard server
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "cors"] }
 

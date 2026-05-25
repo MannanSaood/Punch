@@ -1,0 +1,111 @@
+# Build punch-server, push to GHCR, deploy to Oracle VM with Caddy (wss://).
+#
+# Secrets: ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY, PUNCH_DOMAIN
+#   PUNCH_DOMAIN = e.g. punch.example.com (A record → VM IP)
+
+name: Build and Deploy Punch Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'Dockerfile'
+      - 'deploy/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: punch-server-deploy
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  DEPLOY_DIR: /opt/punch
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name (GHCR requires lowercase)
+        id: image
+        run: echo "name=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Oracle VM
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure deploy directory on VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: mkdir -p ${{ env.DEPLOY_DIR }}
+
+      - name: Copy compose files to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          source: deploy/Caddyfile,deploy/docker-compose.yml
+          target: ${{ env.DEPLOY_DIR }}
+          strip_components: 1
+
+      - name: Deploy with Docker Compose + TLS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          PUNCH_DOMAIN: ${{ secrets.PUNCH_DOMAIN }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: IMAGE,GHCR_TOKEN,GITHUB_ACTOR,PUNCH_DOMAIN
+          script: |
+            set -euo pipefail
+            mkdir -p ${{ env.DEPLOY_DIR }}
+            cd ${{ env.DEPLOY_DIR }}
+            cat > .env <<EOF
+            PUNCH_IMAGE=${IMAGE}:latest
+            PUNCH_DOMAIN=${PUNCH_DOMAIN}
+            EOF
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+            docker logout ghcr.io
+            curl -fsS "https://${PUNCH_DOMAIN}/health"

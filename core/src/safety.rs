@@ -213,7 +213,7 @@ pub fn display_sender_info(filename: &str, total_size: u64, checksum: &str) {
 // ─── ACCEPTANCE LOG ───────────────────────────────────────────────────────────
 
 /// A record of every transfer acceptance decision — always logged locally.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcceptanceRecord {
     pub timestamp: chrono::DateTime<Utc>,
     pub filename: String,
@@ -271,7 +271,19 @@ async fn write_acceptance_record(record: AcceptanceRecord) -> anyhow::Result<()>
         vec![]
     };
 
-    records.push(record);
+    records.push(record.clone());
+
+    crate::dashboard_server::emit(
+        "transfer_decision",
+        serde_json::json!({
+            "filename": record.filename,
+            "size_bytes": record.size_bytes,
+            "decision": record.decision,
+            "risk_level": record.risk_level,
+            "fingerprint": record.fingerprint,
+            "dest_path": record.dest_path,
+        }),
+    );
 
     let mut file = tokio::fs::File::create(&path).await?;
     file.write_all(serde_json::to_string_pretty(&records)?.as_bytes()).await?;

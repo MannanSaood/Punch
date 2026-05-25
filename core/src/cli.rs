@@ -250,13 +250,25 @@ pub async fn receive(
         meta.filename,
         meta.total_size / (1024 * 1024)
     );
-    println!("📦 {} chunks × {}MB, {} parallel streams\n",
+    println!("{} chunks × {}MB, {} parallel streams\n",
         meta.chunk_count,
         meta.chunk_size / (1024 * 1024),
         meta.parallel_streams
     );
 
-    // Connect directly to sender — bypasses server entirely
+    let consent = crate::safety::TransferConsent::build(
+        &meta.filename,
+        meta.total_size,
+        &meta.file_checksum,
+        &meta.node_addr,
+    );
+    if !consent.prompt().await? {
+        println!("Transfer rejected.");
+        return Ok(());
+    }
+    crate::safety::log_acceptance(&consent, meta.total_size, true, dest_dir.to_str().unwrap_or("."))
+        .await;
+
     crate::transfer::run_receiver(&meta, &dest_dir).await?;
 
     Ok(())
