@@ -13,6 +13,9 @@ fn main() {
         return;
     }
 
+    // Determine the correct npm command based on the OS
+    let npm_cmd = if cfg!(windows) { "npm.cmd" } else { "npm" };
+
     // Check if Node is available
     let node_check = Command::new("node").arg("--version").output();
     if node_check.is_err() {
@@ -24,7 +27,7 @@ fn main() {
     // npm install if node_modules missing
     if !dashboard_dir.join("node_modules").exists() {
         println!("cargo:warning=Installing dashboard dependencies...");
-        let status = Command::new("npm")
+        let status = Command::new(npm_cmd)
             .arg("install")
             .current_dir(dashboard_dir)
             .status();
@@ -36,7 +39,7 @@ fn main() {
     }
 
     // npm run build
-    let status = Command::new("npm")
+    let status = Command::new(npm_cmd)
         .args(["run", "build"])
         .current_dir(dashboard_dir)
         .status();

@@ -3,12 +3,19 @@ use axum::{
     extract::ws::{WebSocket, WebSocketUpgrade, Message as WsMessage},
     response::{Html, Response, IntoResponse},
     routing::get,
+    http::{StatusCode, header, Uri},
 };
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
+use rust_embed::RustEmbed;
+
+// This macro embeds the frontend files directly into your .exe at compile time!
+#[derive(RustEmbed)]
+#[folder = "../dashboard/dist/"]
+struct Assets;
 
 #[derive(Clone)]
 pub struct DashboardState {
@@ -45,7 +52,6 @@ pub async fn serve() -> anyhow::Result<()> {
     let state = Arc::new(get_dashboard().clone());
 
     let app = Router::new()
-        .route("/",              get(serve_dashboard))
         .route("/api/sessions",  get(api_sessions))
         .route("/api/tokens",    get(api_tokens))
         .route("/api/transfers", get(api_transfers))
@@ -56,6 +62,8 @@ pub async fn serve() -> anyhow::Result<()> {
             let state = Arc::clone(&state);
             move |ws| ws_handler(ws, Arc::clone(&state))
         }))
+        // The fallback handles serving the index.html, JS, and CSS files
+        .fallback(serve_asset)
         .layer(CorsLayer::permissive());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 7777));
@@ -67,31 +75,45 @@ pub async fn serve() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn serve_dashboard() -> impl IntoResponse {
-    let dist = dist_path().join("index.html");
-    if dist.exists() {
-        if let Ok(html) = tokio::fs::read_to_string(&dist).await {
-            return Html(html).into_response();
+// Automatically serve embedded files (HTML, JS, CSS)
+async fn serve_asset(uri: Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches('/');
+    let path = if path.is_empty() { "index.html" } else { path };
+
+    match Assets::get(path) {
+        // If the file exists (like an .html, .js, or .css file), serve it with the right mime type
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, mime.as_ref())],
+                content.data.into_owned(),
+            ).into_response()
         }
-    }
-    Html(r#"<!DOCTYPE html>
+        // If the file isn't found (useful for SPA client-side routing), fallback to index.html
+        None => {
+            match Assets::get("index.html") {
+                Some(content) => {
+                    (
+                        StatusCode::OK,
+                        [(header::CONTENT_TYPE, "text/html")],
+                        content.data.into_owned(),
+                    ).into_response()
+                }
+                None => {
+                    // Fallback just in case something went terribly wrong
+                    Html(r#"<!DOCTYPE html>
 <html style="background:#080808;color:#f0ece4;font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
 <body style="text-align:center">
   <div>
     <div style="font-family:serif;font-size:48px;font-weight:900;letter-spacing:0.3em;margin-bottom:24px">PUNCH</div>
-    <div style="font-size:12px;letter-spacing:0.2em;opacity:0.5;margin-bottom:32px;text-transform:uppercase">Dashboard not built yet</div>
-    <div style="font-size:11px;opacity:0.4;line-height:2.2">cd dashboard<br>npm install<br>npm run build</div>
+    <div style="font-size:12px;letter-spacing:0.2em;opacity:0.5;margin-bottom:32px;text-transform:uppercase">Dashboard completely missing</div>
   </div>
 </body></html>"#.to_string()).into_response()
-}
-
-fn dist_path() -> PathBuf {
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("dashboard")
-        .join("dist")
+                }
+            }
+        }
+    }
 }
 
 async fn api_sessions()  -> Json<serde_json::Value> { read_log("sessions.json").await }

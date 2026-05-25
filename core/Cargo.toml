@@ -81,3 +81,7 @@ portable-pty = "0.8"
  
 # Terminal UI for Device B monitoring view
 crossterm = "0.27"
+
+# Dashboard
+rust-embed = "8.0"
+mime_guess = "2.0"
