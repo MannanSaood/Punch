@@ -18,7 +18,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/core-Rust-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
 [![Go](https://img.shields.io/badge/server-Go-00ADD8?style=flat-square&logo=go)](https://golang.org/)
-[![Version](https://img.shields.io/badge/version-0.6.0-22c55e?style=flat-square)]()
+[![Version](https://img.shields.io/badge/version-0.8.1-22c55e?style=flat-square)]()
 [![Built in Bengaluru](https://img.shields.io/badge/built%20in-Bengaluru-ff6b35?style=flat-square)]()
 
 <br/>
@@ -73,7 +73,8 @@ One code. Two devices. Done.
 | File transfer | `punch send` / `punch receive` | **Shipped** | Iroh QUIC |
 | Port forwarding | `punch forward` | **Shipped** | Iroh QUIC |
 | Remote terminal | `punch shell host` / `punch shell connect` | **Shipped** | Iroh QUIC + PTY (portable-pty, crossterm) |
-| Local dashboard | `punch dashboard` | Planned (v0.7) | — |
+| Local dashboard | `punch dashboard` | Planned (v0.7) | **Shipped** | Svelte.js |
+| Data piping | `punch pipe send` / `punch pipe receive` | **Shipped** | Iroh QUIC |
 | Developer library | `punch-core` crate | Planned (v0.8) | — |
 
 ---
@@ -292,6 +293,17 @@ punch forward connect <code> --local 8096  # specific local port
 punch forward connect <code> --udp         # enable UDP
 ```
 
+### Pipe raw data (stdin/stdout)
+Stream logs, database dumps, or raw text directly between terminals.
+```bash
+# Device A — stream a local file or command output
+cat database.sql | punch pipe send
+# T-No: 8492 — share this with Device B
+
+# Device B — receive the stream and save/pipe it
+punch pipe receive 8492 > backup.sql
+```
+
 **Security per session:**
 - Iroh QUIC with peer public key authentication (no MITM possible)
 - Port whitelist enforced via in-band handshake — only the agreed port, nothing else
@@ -386,6 +398,8 @@ punch connect 1234 --server ws://your-server.com:8080
 punch forward expose 8096 --server wss://your-server.com
 punch shell host --server ws://your-server.com:8080
 punch shell connect <code> --server ws://your-server.com:8080
+punch pipe send                        
+punch pipe receive <code>            
 ```
 
 **Environment variables:**
@@ -396,7 +410,7 @@ punch shell connect <code> --server ws://your-server.com:8080
 | `PUNCH_RELAY_ENABLED` | `true` | Enable encrypted relay fallback |
 | `PUNCH_MAX_SESSIONS` | `1000` | Max concurrent sessions |
 
-**Public server:** `ws://129.159.21.6:8080` (Oracle VM; default for the CLI — override with `--server`)
+**Public server:** `wss://129.159.21.6.nip.io` (Oracle VM; default for the CLI — override with --server)
 
 ---
 
@@ -455,6 +469,10 @@ punch dashboard                        # local web dashboard
 punch --server <url> <command>         # custom signalling server
 punch --log <command>                  # enable session logging
 punch --verbose <command>              # debug output
+
+# Data piping
+punch pipe send                        # stream stdin to peer
+punch pipe receive <code>              # output peer stream to stdout
 ```
 
 Full reference: [USAGE.md](USAGE.md)

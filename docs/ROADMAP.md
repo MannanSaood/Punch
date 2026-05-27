@@ -94,51 +94,46 @@ punch shell connect <code>
 
 ---
 
-## v0.7 — Local Dashboard (planned)
+## v0.7 — Local Dashboard
 See everything Punch has ever done. On your machine only.
 
-```bash
-punch dashboard  # → http://localhost:7777
-```
-
-**Shows:**
-- Connection history — type, duration, data transferred
-- Token activity — Q-No remaining uses, P-No last used
-- File transfer log — sent/received, risk levels, decisions
-- Port forward log — sessions, stream counts, ports
-- Terminal session log (v0.6 data)
-
-Zero external requests. Reads local files only. Svelte, compiled static bundle.
-
-**Done when:** `punch dashboard` loads completely offline and shows full history.
+- Svelte static bundle served locally
+- Connection history, token activity, and transfer logs
+- Zero external requests
 
 ---
 
-## v0.8 — Developer Library (planned)
+## v0.8 — Data Piping (Shipped)
+Stream raw data directly between terminals.
+
+- `punch pipe send` / `punch pipe receive`
+- Iroh QUIC transport for stdin/stdout streams
+- Ideal for logs, database dumps, and CI/CD pipelines
+
+---
+
+## v0.9 — Developer Library (planned)
 Embed Punch in your own apps.
-
-```rust
-// Cargo.toml
-punch-core = "0.8"
-
-// Code
-let conn = punch::connect("4829").await?;
-conn.send(data).await?;
-let msg = conn.recv().await?;
-```
 
 - Extract core into `punch-core` crate
 - Clean async API: `connect()`, `send()`, `recv()`, `forward()`, `close()`
 - Published to crates.io
-- Full docs on docs.rs
-- Integration test suite
 
-**Done when:** Someone builds a working p2p app with `punch-core` in under 20 lines.
+---
+
+## v0.10 — Sidecar (planned)
+Headless background service for complex integrations.
+
+- REST + WebSocket API over local port
+- Named sessions and persistent background connections
+- Programmatic control over Punch connections
 
 ---
 
 ## v1.0 — Public Launch (planned)
 Production ready. Real world tested. Properly distributed.
+
+---
 
 **Hardening:**
 - Security audit of relay encryption
@@ -186,6 +181,8 @@ Not committed. Only after v1.0 ships.
 | v0.4 | Shipped | File transfer, Iroh QUIC, resumable |
 | v0.5 | Shipped | Port forwarding, TCP + UDP |
 | v0.6 | Shipped | Remote terminal + consent |
-| v0.7 | Planned | Local dashboard |
-| v0.8 | Planned | Developer library on crates.io |
+| v0.7 | Shipped | Local dashboard |
+| v0.8 | Shipped | Data piping (stdin/stdout) |
+| v0.9 | Planned | Developer library (`punch-core`) |
+| v0.10 | Planned | Sidecar API (REST/WS) |
 | v1.0 | Planned | Public launch |

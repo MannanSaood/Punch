@@ -78,11 +78,10 @@ Check the [ROADMAP](ROADMAP.md) for the current milestone.
 Focus on what's in the next version — don't skip ahead.
 
 **Actively needed:**
-- v0.5 port forwarding — `punch forward <port> <code>`
-- Symmetric NAT edge case testing and fixes
+- v0.9 `punch-core` crate extraction and clean Rust API design
+- v0.10 Sidecar architecture and REST/WS interface planning
 - Windows build testing and bug reports
 - ARM (Raspberry Pi) testing
-- v0.7 Svelte dashboard UI components
 
 **Good first contributions:**
 - Improve error messages for common failure cases
