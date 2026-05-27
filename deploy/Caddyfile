@@ -1,6 +1,6 @@
 # TLS + reverse proxy for Punch signalling (WebSocket at /ws).
 # Set PUNCH_DOMAIN when starting Caddy (see deploy/docker-compose.yml).
 
-http://{$PUNCH_DOMAIN}{
+{$PUNCH_DOMAIN} {
 	reverse_proxy punch-server:8080
 }

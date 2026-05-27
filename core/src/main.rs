@@ -18,7 +18,7 @@ mod pipe; // NEW
 
 use clap::{Parser, Subcommand};
 
-const DEFAULT_SERVER: &str = "ws://129.159.21.6";
+const DEFAULT_SERVER: &str = "wss://129.159.21.6.nip.io";
 const STARTUP_NOTE: &str = "Note: Punch works best on WiFi. Mobile/corporate networks may fall back to relay.";
 
 #[derive(Parser)]
