@@ -18,14 +18,14 @@ mod pipe; // NEW
 
 use clap::{Parser, Subcommand};
 
-const DEFAULT_SERVER: &str = "ws://129.159.21.6:8080";
+const DEFAULT_SERVER: &str = "ws://129.159.21.6";
 const STARTUP_NOTE: &str = "Note: Punch works best on WiFi. Mobile/corporate networks may fall back to relay.";
 
 #[derive(Parser)]
 #[command(
     name = "punch",
     about = "Punches through networks to connect two devices directly",
-    version = "0.7.0",
+    version = "0.8.0",
     author = "Syed Mannan Saood"
 )]
 struct Cli {
