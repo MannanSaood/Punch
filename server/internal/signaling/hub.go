@@ -30,7 +30,8 @@ const (
 	MsgTransfer   MessageType = "transfer"
 	MsgForward    MessageType = "forward"
 	MsgShell      MessageType = "shell"  // direct connection established, server exits
-	MsgError     MessageType = "error"      // something went wrong
+	MsgPipe       MessageType = "pipe"   // pipe session handshake
+	MsgError      MessageType = "error"  // something went wrong
 )
 
 // Message is the envelope for all signalling communication.
@@ -165,6 +166,9 @@ func (h *Hub) handleMessage(p *Peer, msg Message) {
 		h.handleEndpoint(p, msg)
 
 	case MsgShell:
+		h.handleEndpoint(p, msg)
+		
+	case MsgPipe:
 		h.handleEndpoint(p, msg)
 
 	case MsgEndpoint:

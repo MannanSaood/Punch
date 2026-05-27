@@ -522,3 +522,32 @@ pub async fn shell_connect(
 
     Ok(())
 }
+
+/// Handle `punch pipe send` — sender side (reads from stdin)
+pub async fn pipe_send(server: String) -> anyhow::Result<()> {
+    use crate::pipe::{prepare_pipe, run_pipe_sender};
+
+    let token = crate::token::Token::generate(None, false);
+    println!("\nT-No: {}", token.code);
+    println!("Share this code with the receiver.\n");
+
+    let (handshake, endpoint) = prepare_pipe().await?;
+
+    let mut client = SignalingClient::connect(&server, &token.code).await?;
+    client.wait_for_peer().await?;
+    client.send_pipe_handshake(&handshake).await?;
+
+    run_pipe_sender(endpoint).await?;
+    Ok(())
+}
+
+/// Handle `punch pipe receive <code>` — receiver side (writes to stdout)
+pub async fn pipe_recv(server: String, code: String) -> anyhow::Result<()> {
+    use crate::pipe::run_pipe_receiver;
+
+    let mut client = SignalingClient::connect(&server, &code).await?;
+    let handshake = client.wait_for_pipe_handshake().await?;
+
+    run_pipe_receiver(&handshake).await?;
+    Ok(())
+}

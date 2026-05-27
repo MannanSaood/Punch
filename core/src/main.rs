@@ -14,6 +14,7 @@ mod shell;
 mod shell_config;
 mod active_state;
 mod telemetry;
+mod pipe; // NEW
 
 use clap::{Parser, Subcommand};
 
@@ -90,6 +91,12 @@ enum Commands {
         action: ShellAction,
     },
 
+    /// Stream stdin to a remote peer, or receive stdout
+    Pipe {
+        #[command(subcommand)]
+        action: PipeAction,
+    },
+
     /// Send a file to a peer
     Send {
         /// Path to the file to send
@@ -159,6 +166,17 @@ enum ShellAction {
     },
 }
 
+#[derive(Subcommand)]
+enum PipeAction {
+    /// Send stdin to a peer
+    Send,
+    /// Receive stdout from a peer
+    Receive {
+        /// Connection code from the sender
+        code: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
 let cli = Cli::parse();
@@ -220,6 +238,19 @@ let cli = Cli::parse();
                 }
                 ShellAction::Connect { code } => {
                     cli::shell_connect(cli.server, code).await?;
+                }
+            }
+        }
+        Commands::Pipe { action } => {
+            eprintln!("
+{}
+", STARTUP_NOTE);
+            match action {
+                PipeAction::Send => {
+                    cli::pipe_send(cli.server).await?;
+                }
+                PipeAction::Receive { code } => {
+                    cli::pipe_recv(cli.server, code).await?;
                 }
             }
         }

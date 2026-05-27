@@ -21,6 +21,7 @@ pub enum MsgType {
     Transfer,   // file transfer metadata
     Forward,    // port forward handshake
     Shell,      // shell session handshake
+    Pipe,       // pipe session handshake
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -342,6 +343,28 @@ impl SignalingClient {
         }
     }
 
+    /// Send pipe handshake to connector.
+    pub async fn send_pipe_handshake(&mut self, handshake: &crate::pipe::PipeHandshake) -> anyhow::Result<()> {
+        let payload = serde_json::to_value(handshake)?;
+        self.send(SignalMessage {
+            msg_type: MsgType::Pipe,
+            code: Some(self.code.clone()),
+            payload: Some(payload),
+        }).await
+    }
+
+    /// Wait to receive pipe handshake from exposer.
+    pub async fn wait_for_pipe_handshake(&mut self) -> anyhow::Result<crate::pipe::PipeHandshake> {
+        loop {
+            match self.recv().await? {
+                SignalMessage { msg_type: MsgType::Pipe, payload: Some(p), .. } => {
+                    return Ok(serde_json::from_value(p)?);
+                }
+                _ => continue,
+            }
+        }
+    }
+
     /// Send Quinn address to connector so they know where to connect.
     #[allow(dead_code)]
     pub async fn send_quinn_addr(&mut self, addr: &str) -> anyhow::Result<()> {
@@ -368,7 +391,7 @@ impl SignalingClient {
         }
     }
 
-        /// Send file transfer metadata to the receiver via signalling server.
+    /// Send file transfer metadata to the receiver via signalling server.
     pub async fn send_transfer_meta(&mut self, meta: &TransferMeta) -> anyhow::Result<()> {
         let payload = serde_json::to_value(meta)?;
         self.send(SignalMessage {
@@ -391,7 +414,7 @@ impl SignalingClient {
         }
     }
 
-        async fn send(&mut self, msg: SignalMessage) -> anyhow::Result<()> {
+    async fn send(&mut self, msg: SignalMessage) -> anyhow::Result<()> {
         let json = serde_json::to_string(&msg)?;
         self.ws.send(Message::Text(json)).await?;
         Ok(())
