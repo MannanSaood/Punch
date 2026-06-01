@@ -1,20 +1,23 @@
 mod cli;
-mod crypto;
-mod stun;
-mod signaling;
-mod punch;
-mod token;
-mod token_store;
-mod logger;
-mod dashboard_server;
-mod transfer;
-mod safety;
-mod forward;
-mod shell;
-mod shell_config;
-mod active_state;
-mod telemetry;
-mod pipe; // NEW
+
+use punch_core::{
+    crypto,
+    stun,
+    signaling,
+    punch,
+    token,
+    token_store,
+    logger,
+    dashboard_server,
+    transfer,
+    safety,
+    forward,
+    shell,
+    shell_config,
+    active_state,
+    telemetry,
+    pipe,
+};
 
 use clap::{Parser, Subcommand};
 

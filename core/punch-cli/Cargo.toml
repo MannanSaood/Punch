@@ -1,0 +1,32 @@
+[package]
+name        = "punch-cli"
+version     = "0.8.0"
+edition     = "2021"
+authors     = ["Syed Mannan Saood <syed.mannan@outlook.com>"]
+description = "Punches through networks to connect two devices directly"
+license     = "MIT"
+repository  = "https://github.com/MannanSaood/punch"
+
+[[bin]]
+name = "punch"
+path = "src/main.rs"
+
+[dependencies]
+# punch-core provides all networking, transfer, forward, shell, pipe logic
+punch-core = { path = "../punch-core" }
+
+# CLI only — argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# CLI only — log subscriber (library just emits tracing events)
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# CLI only — error handling and async runtime
+anyhow = "1"
+tokio  = { version = "1", features = ["full"] }
+
+# Needed directly in cli.rs for types punch-core re-exports
+# These come transitively through punch-core but listed here for clarity
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono     = { version = "0.4", features = ["serde"] }
