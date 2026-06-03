@@ -58,8 +58,8 @@ jobs:
 
           # Push to main: only release when Cargo.toml version changes
           if [ "$REF" = "refs/heads/main" ]; then
-            CUR=$(grep -m1 '^version' core/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
-            PREV=$(git show HEAD~1:core/Cargo.toml 2>/dev/null | grep -m1 '^version' | sed -E 's/.*"([^"]+)".*/\1/' || true)
+            CUR=$(grep -m1 '^version' core/punch-cli/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+            PREV=$(git show HEAD~1:core/punch-cli/Cargo.toml 2>/dev/null | grep -m1 '^version' | sed -E 's/.*"([^"]+)".*/\1/' || true)
             if [ -n "$CUR" ] && [ "$CUR" != "$PREV" ]; then
               echo "run_release=true" >> "$GITHUB_OUTPUT"
               echo "checkout_ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
@@ -117,11 +117,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             core/target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('core/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('core/punch-cli/Cargo.toml', 'core/punch-core/Cargo.toml') }}
 
       - name: Build release binary
         working-directory: core
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} -p punch-cli
 
       - name: Rename binary
         shell: bash

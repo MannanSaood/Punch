@@ -16,7 +16,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -24,15 +23,15 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             core/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('core/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('core/punch-cli/Cargo.toml', 'core/punch-core/Cargo.toml') }}
 
       - name: Build
         working-directory: core
-        run: cargo build --locked --release
+        run: cargo build --locked --release -p punch-cli
 
       - name: Check warnings
         working-directory: core
-        run: cargo clippy -- -D warnings
+        run: cargo clippy -p punch-cli -- -D warnings
 
   build-server:
     name: Build Server (Go)

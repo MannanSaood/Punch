@@ -108,4 +108,4 @@ jobs:
             docker compose up -d --remove-orphans
             docker image prune -f
             docker logout ghcr.io
-            curl -fsS "http://${PUNCH_DOMAIN}/health"
+            curl -fsS "https://${PUNCH_DOMAIN}/health"
