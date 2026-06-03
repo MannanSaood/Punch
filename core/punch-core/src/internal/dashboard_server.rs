@@ -22,6 +22,12 @@ pub struct DashboardState {
     pub tx: broadcast::Sender<String>,
 }
 
+impl Default for DashboardState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DashboardState {
     pub fn new() -> Self {
         let (tx, _) = broadcast::channel(256);

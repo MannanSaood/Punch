@@ -19,6 +19,11 @@ pub enum ConnectionResult {
 
 pub struct PunchEngine;
 
+impl Default for PunchEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl PunchEngine {
     pub fn new() -> Self {
         PunchEngine

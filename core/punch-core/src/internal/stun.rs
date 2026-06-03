@@ -9,7 +9,11 @@ const STUN_SERVERS: &[&str] = &[
 ];
 
 pub struct StunClient;
-
+impl Default for StunClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl StunClient {
     pub fn new() -> Self {
         StunClient

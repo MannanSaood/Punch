@@ -181,7 +181,7 @@ pub async fn forward(port: u16, udp: bool) -> anyhow::Result<String> {
     token_store::store_token(&t).await?;
 
     let (handshake, endpoint) = forward::prepare_exposer(
-        port, protocol, &t.display_label()
+        port, protocol, t.display_label()
     ).await?;
 
     tracing::info!(code = %t.code, port, "Exposing port");
