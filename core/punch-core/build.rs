@@ -3,10 +3,10 @@ use std::path::Path;
 
 fn main() {
     // Tell Cargo to re-run if dashboard source changes
-    println!("cargo:rerun-if-changed=dashboard/src");
-    println!("cargo:rerun-if-changed=dashboard/package.json");
+    println!("cargo:rerun-if-changed=../../dashboard/src");
+    println!("cargo:rerun-if-changed=../../dashboard/package.json");
 
-    let dashboard_dir = Path::new("../dashboard");
+    let dashboard_dir = Path::new("../../dashboard");
 
     // Only build if dashboard source exists
     if !dashboard_dir.join("package.json").exists() {
