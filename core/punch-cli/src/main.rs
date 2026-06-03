@@ -1,21 +1,15 @@
 mod cli;
 
 use punch_core::{
-    crypto,
-    stun,
     signaling,
     punch,
     token,
     token_store,
-    logger,
     dashboard_server,
     transfer,
     safety,
     forward,
     shell,
-    shell_config,
-    active_state,
-    telemetry,
     pipe,
 };
 
@@ -182,7 +176,7 @@ enum PipeAction {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-let cli = Cli::parse();
+    let cli = Cli::parse();
 
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
@@ -214,9 +208,7 @@ let cli = Cli::parse();
             cli::revoke(code).await?;
         }
         Commands::Forward { action } => {
-            eprintln!("
-{}
-", STARTUP_NOTE);
+            eprintln!("\n{}\n", STARTUP_NOTE);
             match action {
                 ForwardAction::Expose {
                     port,
@@ -224,50 +216,42 @@ let cli = Cli::parse();
                     uses,
                     permanent,
                 } => {
-                    cli::forward_expose(cli.server, port, udp, uses, permanent).await?;
+                    cli::forward_expose(cli.server, *port, *udp, *uses, *permanent).await?;
                 }
                 ForwardAction::Connect { code, local, udp } => {
-                    cli::forward_connect(cli.server, code, local, udp).await?;
+                    cli::forward_connect(cli.server, code.clone(), *local, *udp).await?;
                 }
             }
         }
         Commands::Shell { action } => {
-            eprintln!("
-{}
-", STARTUP_NOTE);
+            eprintln!("\n{}\n", STARTUP_NOTE);
             match action {
                 ShellAction::Host { uses, permanent } => {
-                    cli::shell_host(cli.server, uses, permanent).await?;
+                    cli::shell_host(cli.server, *uses, *permanent).await?;
                 }
                 ShellAction::Connect { code } => {
-                    cli::shell_connect(cli.server, code).await?;
+                    cli::shell_connect(cli.server, code.clone()).await?;
                 }
             }
         }
         Commands::Pipe { action } => {
-            eprintln!("
-{}
-", STARTUP_NOTE);
+            eprintln!("\n{}\n", STARTUP_NOTE);
             match action {
                 PipeAction::Send => {
                     cli::pipe_send(cli.server).await?;
                 }
                 PipeAction::Receive { code } => {
-                    cli::pipe_recv(cli.server, code).await?;
+                    cli::pipe_recv(cli.server, code.clone()).await?;
                 }
             }
         }
         Commands::Send { file } => {
-            eprintln!("
-{}
-", STARTUP_NOTE);
-            cli::send(cli.server, file, cli.log).await?;
+            eprintln!("\n{}\n", STARTUP_NOTE);
+            cli::send(cli.server, file.clone(), cli.log).await?;
         }
         Commands::Receive { code, dest } => {
-            eprintln!("
-{}
-", STARTUP_NOTE);
-            cli::receive(cli.server, code, dest).await?;
+            eprintln!("\n{}\n", STARTUP_NOTE);
+            cli::receive(cli.server, code.clone(), dest.clone()).await?;
         }
         Commands::Tokens => {
             cli::tokens().await?;

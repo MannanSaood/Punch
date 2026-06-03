@@ -14,7 +14,7 @@ use rust_embed::RustEmbed;
 
 // This macro embeds the frontend files directly into your .exe at compile time!
 #[derive(RustEmbed)]
-#[folder = "../dashboard/dist/"]
+#[folder = "../../dashboard/dist/"]
 struct Assets;
 
 #[derive(Clone)]

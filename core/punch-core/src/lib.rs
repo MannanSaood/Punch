@@ -24,28 +24,16 @@
 // ── Re-export internal modules so punch-cli can reach them
 // without duplicating files. punch-cli replaces `mod signaling;`
 // with `use punch_core::signaling;` etc.
-pub mod active_state;
-pub mod crypto;
-pub mod dashboard_server;
-pub mod forward;
-pub mod logger;
-pub mod pipe;
-pub mod punch;
-pub mod safety;
-pub mod shell;
-pub mod shell_config;
-pub mod signaling;
-pub mod stun;
-pub mod telemetry;
-pub mod token;
-pub mod token_store;
-pub mod transfer;
+pub mod internal;
+
+// Re-export them so the CLI can still reach them easily
+pub use internal::*;
 
 // ── Public types consumers need ──────────────────────────────────────────────
 pub use token::TokenType;
 pub use transfer::TransferMeta;
 pub use forward::{ForwardProtocol, ForwardHandshake};
-pub use pipe::{PipeHandshake, PipeMode};
+pub use pipe::PipeHandshake;
 pub use shell::ShellHandshake;
 
 // ── Global server config ──────────────────────────────────────────────────────
