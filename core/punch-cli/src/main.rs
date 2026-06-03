@@ -216,10 +216,10 @@ async fn main() -> anyhow::Result<()> {
                     uses,
                     permanent,
                 } => {
-                    cli::forward_expose(cli.server, *port, *udp, *uses, *permanent).await?;
+                    cli::forward_expose(cli.server, port, udp, uses, permanent).await?;
                 }
                 ForwardAction::Connect { code, local, udp } => {
-                    cli::forward_connect(cli.server, code.clone(), *local, *udp).await?;
+                    cli::forward_connect(cli.server, code.clone(), local, udp).await?;
                 }
             }
         }
@@ -227,7 +227,7 @@ async fn main() -> anyhow::Result<()> {
             eprintln!("\n{}\n", STARTUP_NOTE);
             match action {
                 ShellAction::Host { uses, permanent } => {
-                    cli::shell_host(cli.server, *uses, *permanent).await?;
+                    cli::shell_host(cli.server, uses, permanent).await?;
                 }
                 ShellAction::Connect { code } => {
                     cli::shell_connect(cli.server, code.clone()).await?;
