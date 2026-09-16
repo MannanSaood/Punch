@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">Punch</title>
+  <desc id="desc">Punch wordmark with two peers connected through a temporary network path.</desc>
+  <rect width="960" height="240" rx="28" fill="#080808"/>
+
+  <g fill="none" stroke="#f0ece4" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="94" cy="120" r="18" stroke-width="4"/>
+    <circle cx="224" cy="120" r="18" stroke-width="4"/>
+    <path d="M114 120h25l11-18 18 36 13-18h23" stroke-width="4"/>
+    <path d="M94 88V70m0 100v-18m-32-32H44m100 0h-18" stroke-width="2" opacity=".35"/>
+    <path d="M224 88V70m0 100v-18m32-32h18" stroke-width="2" opacity=".35"/>
+  </g>
+
+  <text x="310" y="142" fill="#f0ece4" font-family="Georgia, 'Times New Roman', serif" font-size="92" font-weight="700" letter-spacing="18">PUNCH</text>
+  <circle cx="888" cy="91" r="7" fill="#f0ece4"/>
+  <text x="314" y="181" fill="#8f8c87" font-family="'Courier New', monospace" font-size="14" letter-spacing="5">DIRECT · EPHEMERAL · ZERO KNOWLEDGE</text>
+</svg>

@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="../README.md"><img src="assets/punch-logo.svg" width="520" alt="Punch"></a>
+</p>
+
 # Punch — Roadmap
 > Ship something real at every milestone. No milestone ends in "in progress."
 
@@ -41,7 +45,7 @@ Access control that lives on your device.
 Direct peer to peer. Resumable. Safe.
 
 - Iroh QUIC transport — hole punch + relay.iroh.network fallback
-- IDM-style parallel chunked transfer (4 streams)
+- IDM-style parallel chunked transfer (8 streams)
 - Dynamic chunk sizing (1MB / 4MB / 16MB / 64MB by file size)
 - SHA256 per chunk + whole file
 - Resumable via `.punch_partial` + `.punch_state`
@@ -112,21 +116,23 @@ Stream raw data directly between terminals.
 
 ---
 
-## v0.9 — Developer Library (planned)
+## v0.9 — Developer Library
 Embed Punch in your own apps.
 
-- Extract core into `punch-core` crate
-- Clean async API: `connect()`, `send()`, `recv()`, `forward()`, `close()`
-- Published to crates.io
+- `punch-core` crate extracted in the repository
+- Function-based async API for connections, transfers, forwarding, and pipes
+- crates.io publication remains future distribution work
 
 ---
 
-## v0.10 — Sidecar (planned)
+## v0.10 — Sidecar
 Headless background service for complex integrations.
 
-- REST + WebSocket API over local port
-- Named sessions and persistent background connections
-- Programmatic control over Punch connections
+- Authenticated REST + WebSocket API bound to IPv4 loopback
+- Named in-memory sessions with cancellation, progress, and bounded cleanup
+- Programmatic connections, file transfer, forwarding, pipes, and explicit consent
+- Standalone `punch-sidecar` plus `punch sidecar`
+- Prebuilt CLI and sidecar release binaries for Windows x86-64, Linux x86-64, macOS Intel, and macOS ARM
 
 ---
 
@@ -183,6 +189,6 @@ Not committed. Only after v1.0 ships.
 | v0.6 | Shipped | Remote terminal + consent |
 | v0.7 | Shipped | Local dashboard |
 | v0.8 | Shipped | Data piping (stdin/stdout) |
-| v0.9 | Planned | Developer library (`punch-core`) |
-| v0.10 | Planned | Sidecar API (REST/WS) |
+| v0.9 | Shipped in repository | Developer library (`punch-core`) |
+| v0.10 | Shipped | Authenticated localhost sidecar API (REST/WS) |
 | v1.0 | Planned | Public launch |

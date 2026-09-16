@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="../README.md"><img src="assets/punch-logo.svg" width="520" alt="Punch"></a>
+</p>
+
 # Punch — Software Requirements Specification (SRS)
 **Version:** 1.0  
 **Author:** Syed Mannan Saood  
@@ -112,7 +116,7 @@ The server SHALL be configurable via environment variables:
 ### 3.2 Core CLI (Rust)
 
 #### FR-C1: Token Generation
-The CLI SHALL generate a numeric T-No code (4-6 digits) upon `punch generate`.
+The CLI SHALL generate a numeric 4-digit T-No code upon `punch generate`.
 
 #### FR-C2: Token Types
 The CLI SHALL support three token modes:
@@ -207,9 +211,10 @@ The library SHALL expose the core hole punching and relay logic as a Rust crate 
 
 #### FR-L2: Simple API
 ```rust
-let conn = punch::connect("4829").await?;
-conn.send(data).await?;
-let received = conn.recv().await?;
+punch::set_server("wss://your-server.com");
+punch::connect("4829", false).await?;
+let transfer_code = punch::send_file("video.mp4").await?;
+let saved_path = punch::receive_file("4829", "./downloads").await?;
 ```
 
 #### FR-L3: Async First

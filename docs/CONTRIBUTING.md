@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="../README.md"><img src="assets/punch-logo.svg" width="520" alt="Punch"></a>
+</p>
+
 # Contributing to Punch
 
 Thanks for wanting to contribute. Punch is open source and zero-profit — contributions keep it alive.
@@ -79,7 +83,7 @@ Focus on what's in the next version — don't skip ahead.
 
 **Actively needed:**
 - v0.9 `punch-core` crate extraction and clean Rust API design
-- v0.10 Sidecar architecture and REST/WS interface planning
+- v0.10 Sidecar API testing, compatibility, and documentation
 - Windows build testing and bug reports
 - ARM (Raspberry Pi) testing
 

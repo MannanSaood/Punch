@@ -1,5 +1,9 @@
+<p align="center">
+  <a href="README.md"><img src="docs/assets/punch-logo.svg" width="520" alt="Punch"></a>
+</p>
+
 # Punch — Complete Usage Guide
-**v0.7.0** · [Back to README](README.md)
+**v0.10.0** · [Back to README](README.md)
 
 ---
 
@@ -9,7 +13,7 @@ These work with every command:
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--server <url>` | Signalling server URL | `ws://129.159.21.6:8080` |
+| `--server <url>` | Signalling server URL | `wss://129.159.21.6.nip.io` |
 | `--log` | Log session to `~/.punch/logs/sessions.json` | off |
 | `-v, --verbose` | Debug output | off |
 
@@ -86,7 +90,7 @@ punch send setup.exe                 # receiver sees HIGH RISK warning
 2. Split into dynamic chunks (1MB → 64MB based on file size)
 3. T-No code generated and displayed
 4. Receiver sees full consent prompt before anything transfers
-5. File streams peer-to-peer over 4 parallel Iroh QUIC streams
+5. File streams peer-to-peer over 8 parallel Iroh QUIC streams
 6. SHA256 verified per chunk and whole file
 
 **Chunk sizing:**
@@ -231,7 +235,17 @@ Open `http://localhost:54231` in your browser (or whatever port was assigned).
 
 ## `punch shell` — Remote terminal over Iroh QUIC
 
-Traffic is **peer-to-peer** (same Iroh stack as file transfer and port forward). The signalling server only relays the shell **handshake** (like forward). The host machine runs a real PTY (`cmd.exe` on Windows, `$SHELL` elsewhere); the client gets an interactive terminal after the host approves.
+Traffic is **peer-to-peer** (same Iroh stack as file transfer and port forward). The signalling server only relays the shell **handshake** (like forward). Punch never launches the host system shell directly. The host must configure a trusted OS/container sandbox broker in `~/.punch/shell_config.json`; without one, remote shell requests fail closed. The broker command is attached to the PTY, and commands are submitted one line at a time for additional approval and audit policy.
+
+```json
+"sandbox_broker": {
+  "program": "path/to/audited-sandbox-launcher",
+  "args": ["--workspace", "path/to/approved/workspace"],
+  "display_name": "restricted workspace shell"
+}
+```
+
+The broker must establish filesystem, process, and network confinement before starting its shell. `blocked_commands` remains defense-in-depth and is not treated as the isolation boundary.
 
 ### Host (Device B — the machine whose shell is shared)
 
@@ -254,7 +268,7 @@ punch shell connect 4829 --server ws://localhost:8080
 ```
 
 1. Loads host fingerprint from signalling; **verify** it matches the host console.  
-2. Waits for host approval, then attaches to the remote shell. **Ctrl+C** exits the client.
+2. Waits for host approval, then attaches to the remote shell. Submit commands with Enter; terminal editing control sequences are rejected. **Ctrl+C** exits the client.
 
 ### Notes
 
@@ -305,6 +319,22 @@ punch dashboard
 ```
 
 Svelte UI with live WebSocket updates: active sessions, transfers (with progress), forwards, shell commands, and token status. Reads local `~/.punch` data only — no external requests. Build the UI once with `cd dashboard && npm install && npm run build` (or let `cargo build` run it when npm is available).
+
+---
+
+## `punch sidecar` — Local integration API
+
+```bash
+punch sidecar
+# HTTP: http://127.0.0.1:7778
+# Prints a per-process bearer token required by every request.
+
+punch sidecar --port 9000 --server wss://signal.example.com
+# Equivalent global-option form:
+punch --server wss://signal.example.com sidecar --port 9000
+```
+
+The sidecar exposes authenticated localhost-only REST operations and a WebSocket event stream for non-interactive integrations. A separate `punch-sidecar` release binary provides the same service. See [docs/SIDECAR.md](docs/SIDECAR.md) for the complete verified routes, schemas, status codes, streaming behavior, security boundary, and curl/Python/Node.js/Go examples.
 
 ---
 

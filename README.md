@@ -1,37 +1,53 @@
-<div align="center">
+<p align="center">
+  <img src="docs/assets/punch-logo.svg" width="720" alt="Punch — direct, ephemeral, zero-knowledge networking">
+</p>
 
-```
-██████╗ ██╗   ██╗███╗   ██╗ ██████╗██╗  ██╗
-██╔══██╗██║   ██║████╗  ██║██╔════╝██║  ██║
-██████╔╝██║   ██║██╔██╗ ██║██║     ███████║
-██╔═══╝ ██║   ██║██║╚██╗██║██║     ██╔══██║
-██║     ╚██████╔╝██║ ╚████║╚██████╗██║  ██║
-╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝
-```
+<p align="center">
+  <strong>Punches through networks. Connects two devices. Gets out of the way.</strong>
+</p>
 
-### **Punches through networks. Connects two devices. Gets out of the way.**
+<p align="center">
+  No VPN · No account · No cloud middleman · No persistent overlay
+</p>
 
-*No VPN. No account. No cloud middleman. No persistent overlay. No bullshit.*
+<p align="center">
+  <a href="https://github.com/MannanSaood/Punch/releases"><img src="https://img.shields.io/github/v/release/MannanSaood/Punch?style=flat-square&color=18181b" alt="Latest release"></a>
+  <a href="https://github.com/MannanSaood/Punch/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MannanSaood/Punch/ci.yml?branch=main&style=flat-square&label=build&color=18181b" alt="Build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-18181b?style=flat-square" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/core-Rust-18181b?style=flat-square&logo=rust&logoColor=white" alt="Rust core">
+  <img src="https://img.shields.io/badge/server-Go-18181b?style=flat-square&logo=go&logoColor=white" alt="Go server">
+</p>
 
-<br/>
-
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Rust](https://img.shields.io/badge/core-Rust-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
-[![Go](https://img.shields.io/badge/server-Go-00ADD8?style=flat-square&logo=go)](https://golang.org/)
-[![Version](https://img.shields.io/badge/version-0.8.1-22c55e?style=flat-square)]()
-[![Built in Bengaluru](https://img.shields.io/badge/built%20in-Bengaluru-ff6b35?style=flat-square)]()
-
-<br/>
-
-**[Install](#install) · [Quick Start](#quick-start) · [All Commands](#all-commands) · [How it works](#how-it-works) · [Self-hosting](#self-hosting) · [Roadmap](#roadmap)**
-
-<br/>
-
-</div>
+<p align="center">
+  <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="USAGE.md"><b>CLI reference</b></a> ·
+  <a href="docs/SIDECAR.md"><b>Sidecar API</b></a> ·
+  <a href="#how-it-works"><b>Architecture</b></a> ·
+  <a href="docs/CONTRIBUTING.md"><b>Contributing</b></a> ·
+  <a href="https://github.com/MannanSaood/Punch/releases"><b>Releases</b></a>
+</p>
 
 ---
 
-## The Problem
+**One code. Two devices. A direct path when the network allows it, an encrypted
+fallback when it does not, and no permanent network left behind.** Punch is a
+small Rust CLI and embeddable library backed by a stateless Go matchmaker. The
+server introduces peers; it does not become the product's data plane.
+
+```console
+$ punch generate
+T-No: 4829
+Waiting for peer...
+
+$ punch connect 4829
+Punching...
+Punched! Direct connection established.
+```
+
+> Punch is built for temporary access: send a file, expose a service, open a
+> monitored shell, or stream bytes—then let the connection disappear.
+
+## Why Punch
 
 You want to share your screen, send a file, forward a port, or access your home server from anywhere. Here's what the world offers you:
 
@@ -72,10 +88,11 @@ One code. Two devices. Done.
 | Token access control | T-No · Q-No · P-No | **Shipped** | — |
 | File transfer | `punch send` / `punch receive` | **Shipped** | Iroh QUIC |
 | Port forwarding | `punch forward` | **Shipped** | Iroh QUIC |
-| Remote terminal | `punch shell host` / `punch shell connect` | **Shipped** | Iroh QUIC + PTY (portable-pty, crossterm) |
-| Local dashboard | `punch dashboard` | Planned (v0.7) | **Shipped** | Svelte.js |
+| Remote terminal | `punch shell host` / `punch shell connect` | **Sandbox required** | Iroh QUIC + operator-configured sandbox broker + PTY |
+| Local dashboard | `punch dashboard` | **Shipped** | Svelte.js |
 | Data piping | `punch pipe send` / `punch pipe receive` | **Shipped** | Iroh QUIC |
-| Developer library | `punch-core` crate | Planned (v0.8) | — |
+| Developer library | `punch-core` crate | **Shipped in repository** | Rust |
+| Local integration API | `punch-sidecar` / `punch sidecar` | **Shipped** | Authenticated localhost REST + WebSocket |
 
 ---
 
@@ -85,12 +102,12 @@ One code. Two devices. Done.
 
 Grab the binary for your platform from [**Releases →**](https://github.com/MannanSaood/Punch/releases)
 
-| Platform | Binary |
-|----------|--------|
-| Windows (x64) | `punch-windows-x86_64.exe` |
-| Linux (x64) | `punch-linux-x86_64` |
-| macOS (Intel) | `punch-macos-x86_64` |
-| macOS (Apple Silicon) | `punch-macos-arm64` |
+| Platform | CLI | Sidecar |
+|----------|-----|---------|
+| Windows (x64) | `punch-windows-x86_64.exe` | `punch-sidecar-windows-x86_64.exe` |
+| Linux (x64) | `punch-linux-x86_64` | `punch-sidecar-linux-x86_64` |
+| macOS (Intel) | `punch-macos-x86_64` | `punch-sidecar-macos-x86_64` |
+| macOS (Apple Silicon) | `punch-macos-arm64` | `punch-sidecar-macos-arm64` |
 
 **Windows — add to PATH:**
 ```powershell
@@ -108,8 +125,8 @@ sudo mv punch-linux-x86_64 /usr/local/bin/punch
 ```bash
 git clone https://github.com/MannanSaood/Punch.git
 cd Punch/core
-cargo build --release
-# Binary: target/release/punch
+cargo build --locked --release -p punch-cli -p punch-sidecar
+# Binaries: target/release/punch and target/release/punch-sidecar
 ```
 
 > **Note:** Punch works best on WiFi. Mobile and corporate networks fall back to encrypted relay automatically.
@@ -149,7 +166,7 @@ punch generate --uses 5
 # Q-No: 7731
 
 punch send movie.mkv
-# 310 chunks × 4MB | 4 parallel Iroh QUIC streams
+# 310 chunks × 4MB | 8 parallel Iroh QUIC streams
 
 # Device B
 punch receive 1234 --dest ~/Downloads
@@ -187,7 +204,7 @@ punch shell host --server ws://localhost:8080
 
 # Device A — connect with the code / verify fingerprint
 punch shell connect 4829 --server ws://localhost:8080
-# Host must answer consent prompts; then you get an interactive terminal (e.g. cmd.exe / $SHELL).
+# Host must answer consent prompts; commands are line-mediated before reaching cmd.exe / $SHELL.
 # Host: Ctrl+K kills the session; client: Ctrl+C exits.
 ```
 
@@ -245,7 +262,7 @@ Files go **directly peer to peer via Iroh QUIC**. The signalling server never se
 ```
 
 **Every transfer has:**
-- 4 parallel QUIC streams (IDM-style)
+- 8 parallel QUIC streams (IDM-style)
 - SHA256 per chunk + whole file
 - Resumable — `.punch_partial` survives restarts and crashes
 - Idempotent chunks — ACK-lost-after-completion is handled correctly
@@ -466,6 +483,7 @@ punch shell connect <code>            # connect to host’s shell
 
 # Other
 punch dashboard                        # local web dashboard
+punch sidecar                          # authenticated REST/WS API on 127.0.0.1:7778
 punch --server <url> <command>         # custom signalling server
 punch --log <command>                  # enable session logging
 punch --verbose <command>              # debug output
@@ -490,13 +508,15 @@ flowchart LR
     V04["v0.4 — File transfer — Iroh QUIC, IDM chunked, resumable, consent"]
     V05["v0.5 — Port forwarding — TCP + UDP, Iroh QUIC, zero bottleneck"]
     V06["v0.6 — Remote terminal — punch shell + consent + local monitoring"]
+    V07["v0.7 — Local dashboard — sessions, tokens, transfers, port logs"]
+    V08["v0.8 — Data piping — stdin/stdout over Iroh QUIC"]
+    V09["v0.9 — Developer library — punch-core in the repository"]
+    V010["v0.10 — Sidecar — local REST/WebSocket API"]
   end
   subgraph upcoming["Upcoming"]
-    V07["v0.7 — Local dashboard — sessions, tokens, transfers, port logs"]
-    V08["v0.8 — Developer library — punch-core on crates.io"]
     V10["v1.0 — Public launch — hardened, documented, distributed"]
   end
-  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V10
+  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V09 --> V010 --> V10
 ```
 
 ---
@@ -506,17 +526,18 @@ flowchart LR
 ```mermaid
 flowchart TB
   root[punch/]
-  root --> core[core/src/]
+  root --> core[core/]
   root --> server[server/]
   root --> docs[docs/]
   root --> ghw[.github/workflows/]
   root --> docker[Dockerfile — Server container]
   root --> render[render.yaml — Render deployment config]
   root --> usage[USAGE.md — Complete command reference CLI]
+  root --> sidecar_docs[docs/SIDECAR.md — Local REST/WebSocket API]
   root --> readme[README.md]
 
-  core --> main_rs["main.rs — CLI entry point + command definitions"]
-  core --> cli_rs["cli.rs — Command handlers"]
+  core --> cli["punch-cli/src/ — CLI entry point + command handlers"]
+  core --> library["punch-core/src/ — reusable library + internal modules"]
   core --> punch_rs["punch.rs — Hole punching engine"]
   core --> stun_rs["stun.rs — STUN NAT discovery"]
   core --> signaling_rs["signaling.rs — WebSocket signalling client"]
@@ -539,6 +560,7 @@ flowchart TB
   docs --> roadmap_md["ROADMAP.md — Detailed version roadmap"]
   docs --> srs_md["SRS.md — Software requirements spec"]
   docs --> contrib_md["CONTRIBUTING.md — Contribution guide"]
+  docs --> sidecar_md["SIDECAR.md — REST/WebSocket reference"]
 
   ghw --> ci_yml["ci.yml — Build + lint on every push"]
   ghw --> rel_yml["release.yml — Cross-platform binaries on tag"]
@@ -555,7 +577,7 @@ Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
 - Symmetric NAT edge case testing and reports
 - Windows testing (especially port forwarding)
 - ARM / Raspberry Pi testing
-- Dashboard UI (Svelte, v0.7)
+- Dashboard UX polish and offline behavior testing
 
 **Philosophy rules — non-negotiable:**
 - No central data storage
