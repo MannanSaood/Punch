@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="#quick-start"><b>Quick start</b></a> ·
-  <a href="USAGE.md"><b>CLI reference</b></a> ·
+  <a href="USAGE.md"><b>CLI Reference</b></a> ·
   <a href="docs/SIDECAR.md"><b>Sidecar API</b></a> ·
   <a href="#how-it-works"><b>Architecture</b></a> ·
   <a href="docs/CONTRIBUTING.md"><b>Contributing</b></a> ·
